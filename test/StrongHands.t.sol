@@ -7,9 +7,15 @@ import {StrongHandsDeploy} from "../script/StrongHandsDeploy.s.sol";
 
 contract StrongHandsTest is Test {
     StrongHands public strongHands;
+    StrongHandsDeploy deployScript;
 
     function setUp() public {
-        StrongHandsDeploy deploy = new StrongHandsDeploy();
-        strongHands = deploy.run();
+        deployScript = new StrongHandsDeploy();
+        strongHands = deployScript.run();
+    }
+
+    function test_constructor() public view {
+        assertEq(strongHands.i_lockPeriod(), deployScript.LOCK_PERIOD());
+        assertEq(strongHands.i_owner(), msg.sender);
     }
 }
