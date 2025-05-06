@@ -36,7 +36,7 @@ contract StrongHands {
     // sum of all user.amount
     uint256 public totalStaked;
     // mapping of all users in the system
-    mapping(address => User) users;
+    mapping(address => User) public users;
 
     ////////////////////
     // * Modifiers 	  //
