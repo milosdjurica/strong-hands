@@ -39,7 +39,7 @@ contract StrongHandsTest is Test {
         emit Deposited(BOB, 1 ether, block.timestamp);
         strongHands.deposit{value: 1 ether}();
 
-        (uint256 amount, uint256 timestamp) = strongHands.users(BOB);
+        (uint256 amount, uint256 timestamp,) = strongHands.users(BOB);
 
         assertEq(amount, 1 ether);
         assertEq(timestamp, block.timestamp);
@@ -54,7 +54,7 @@ contract StrongHandsTest is Test {
         emit Deposited(BOB, amountToDeposit, block.timestamp);
         strongHands.deposit{value: amountToDeposit}();
 
-        (uint256 amount, uint256 timestamp) = strongHands.users(BOB);
+        (uint256 amount, uint256 timestamp,) = strongHands.users(BOB);
 
         assertEq(amount, amountToDeposit);
         assertEq(timestamp, block.timestamp);
@@ -81,7 +81,7 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, 1 ether, 0, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,) = strongHands.users(BOB);
+        (uint256 amount,,) = strongHands.users(BOB);
         assertEq(amount, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
@@ -93,12 +93,13 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, 0.5 ether, 0.5 ether, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,) = strongHands.users(BOB);
+        (uint256 amount,,) = strongHands.users(BOB);
         assertEq(amount, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
     }
 
+    // Note -> This test will work only if LOCK_PERIOD % 2 == 0
     function test_withdraw_MidFee() public depositWithBob {
         skip(deployScript.LOCK_PERIOD() / 2);
         vm.prank(BOB);
@@ -106,7 +107,7 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, 0.75 ether, 0.25 ether, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,) = strongHands.users(BOB);
+        (uint256 amount,,) = strongHands.users(BOB);
         assertEq(amount, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
@@ -125,11 +126,11 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, expectedPayout, expectedFee, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,) = strongHands.users(BOB);
+        (uint256 amount,,) = strongHands.users(BOB);
         assertEq(amount, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
     }
 
-    // TODO -> Tests with multiple deposits, multiple withdraws, combinations, same user deposits many times
+    // TODO -> Tests with multiple deposits, multiple withdraws, combinations, same user deposits many times, test transfer fails, etc...
 }

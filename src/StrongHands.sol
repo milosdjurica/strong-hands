@@ -22,11 +22,13 @@ contract StrongHands {
     struct UserInfo {
         uint256 amount;
         uint256 lastDepositTimestamp;
+        uint256 lastDividendPoints;
     }
 
     ////////////////////
     // * Constants	  //
     ////////////////////
+    uint256 constant POINT_MULTIPLIER = 1e18;
     uint256 constant PENALTY_START_PERCENT = 50;
 
     ////////////////////
@@ -44,6 +46,8 @@ contract StrongHands {
     uint256 public totalStaked;
     // mapping of all users in the system
     mapping(address => UserInfo) public users;
+    uint256 totalDividendPoints;
+    uint256 unclaimedDividends;
 
     ////////////////////
     // * Modifiers 	  //
@@ -51,6 +55,22 @@ contract StrongHands {
     modifier onlyOwner() {
         if (msg.sender != i_owner) revert StrongHands__NotOwner(msg.sender, i_owner);
         _;
+    }
+
+    modifier updateUser() {
+        UserInfo storage user = users[msg.sender];
+        uint256 owing = _dividendsOwing(msg.sender);
+        if (owing > 0) {
+            unclaimedDividends -= owing;
+            user.amount += owing;
+        }
+        user.lastDividendPoints = totalDividendPoints;
+        _;
+    }
+
+    function _dividendsOwing(address user) internal view returns (uint256) {
+        uint256 newDividendPoints = totalDividendPoints - users[user].lastDividendPoints;
+        return users[user].amount * newDividendPoints / POINT_MULTIPLIER;
     }
 
     ////////////////////
@@ -66,7 +86,7 @@ contract StrongHands {
     ////////////////////
     // can deposit multiple times
     // depositing starts new lock period counting for user
-    function deposit() external payable {
+    function deposit() external payable updateUser {
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
 
         UserInfo storage user = users[msg.sender];
@@ -80,7 +100,7 @@ contract StrongHands {
 
     // must withdraw all, can not withdraw partially
     // penalty goes from 50% at start to the 0% at the end of lock period
-    function withdraw() external {
+    function withdraw() external updateUser {
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.amount;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
