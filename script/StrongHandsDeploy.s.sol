@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {StrongHands} from "../src/StrongHands.sol";
 
 contract StrongHandsDeploy is Script {
-    uint256 public constant LOCK_PERIOD = 11111;
+    uint256 public constant LOCK_PERIOD = 365 days;
 
     StrongHands public strongHands;
 
