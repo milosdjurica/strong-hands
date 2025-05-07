@@ -23,6 +23,11 @@ contract StrongHands {
     }
 
     ////////////////////
+    // * Constants	  //
+    ////////////////////
+    uint256 constant PENALTY_START_PERCENT = 50;
+
+    ////////////////////
     // * Immutables	  //
     ////////////////////
     // fixed lock period duration (seconds)
@@ -74,9 +79,12 @@ contract StrongHands {
     // must withdraw all, can not withdraw partially
     // penalty goes from 50% at start to the 0% at the end of lock period
     function withdraw() external {
-        if (users[msg.sender].amount == 0) revert StrongHands__ZeroAmount();
+        User storage user = users[msg.sender];
+        if (user.amount == 0) revert StrongHands__ZeroAmount();
 
-        users[msg.sender].amount = 0;
+        uint256 fee = calculateFee(msg.sender);
+
+        user.amount = 0;
     }
 
     ////////////////////
@@ -100,4 +108,17 @@ contract StrongHands {
     ////////////////////
     // * View & Pure  //
     ////////////////////
+    function calculateFee(address userAddr) public view returns (uint256) {
+        User memory user = users[userAddr];
+        uint256 unlockTimestamp = user.lastDepositTimestamp + i_lockPeriod;
+        if (block.timestamp >= unlockTimestamp) return 0;
+
+        uint256 timeLeft = unlockTimestamp - block.timestamp;
+
+        // TODO -> this could be optimized to -> uint256 fee = (timeLeft * user.amount) / (i_lockPeriod * 2);
+        // user.amount * (timeLeft/i_lockPeriod) * (50/100)
+        // rewritten formula to minimize precision loss
+        uint256 fee = (timeLeft * PENALTY_START_PERCENT * user.amount) / (i_lockPeriod * 100);
+        return fee;
+    }
 }
