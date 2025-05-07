@@ -57,22 +57,6 @@ contract StrongHands {
         _;
     }
 
-    modifier updateUser() {
-        UserInfo storage user = users[msg.sender];
-        uint256 owing = _dividendsOwing(msg.sender);
-        if (owing > 0) {
-            unclaimedDividends -= owing;
-            user.balance += owing;
-        }
-        user.lastDividendPoints = totalDividendPoints;
-        _;
-    }
-
-    function _dividendsOwing(address user) internal view returns (uint256) {
-        uint256 newDividendPoints = totalDividendPoints - users[user].lastDividendPoints;
-        return users[user].balance * newDividendPoints / POINT_MULTIPLIER;
-    }
-
     ////////////////////
     // * Constructor  //
     ////////////////////
@@ -86,8 +70,10 @@ contract StrongHands {
     ////////////////////
     // can deposit multiple times
     // depositing starts new lock period counting for user
-    function deposit() external payable updateUser {
+    function deposit() external payable {
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
+
+        _updateUser();
 
         UserInfo storage user = users[msg.sender];
         user.balance += msg.value;
@@ -100,17 +86,23 @@ contract StrongHands {
 
     // must withdraw all, can not withdraw partially
     // penalty goes from 50% at start to the 0% at the end of lock period
-    function withdraw() external updateUser {
+    function withdraw() external {
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
+
+        _updateUser();
 
         uint256 penalty = calculatePenalty(msg.sender);
 
         user.balance = 0;
         totalStaked -= initialAmount;
 
-        // TODO -> distribute penalty
+        if (penalty > 0) {
+            unclaimedDividends += penalty;
+            totalDividendPoints += (penalty * POINT_MULTIPLIER) / totalStaked;
+        }
+
         // TODO -> check reentrancy
 
         // transfer
@@ -134,6 +126,15 @@ contract StrongHands {
     ////////////////////
     // * Internal 	  //
     ////////////////////
+    function _updateUser() internal {
+        UserInfo storage user = users[msg.sender];
+        uint256 owing = _dividendsOwing(msg.sender);
+        if (owing > 0) {
+            unclaimedDividends -= owing;
+            user.balance += owing;
+        }
+        user.lastDividendPoints = totalDividendPoints;
+    }
 
     ////////////////////
     // * Private 	  //
@@ -144,6 +145,7 @@ contract StrongHands {
     ////////////////////
 
     // TODO -> Should this be public?
+    // TODO -> Could save some gas by passing user.lastDepositTimestamp and user.balance ?
     function calculatePenalty(address userAddr) public view returns (uint256) {
         UserInfo memory user = users[userAddr];
         uint256 unlockTimestamp = user.lastDepositTimestamp + i_lockPeriod;
@@ -152,11 +154,16 @@ contract StrongHands {
         uint256 timeLeft = unlockTimestamp - block.timestamp;
 
         // rewritten formula to minimize precision loss
-        // user.amount * (timeLeft/i_lockPeriod) * (50/100)
+        // user.balance * (timeLeft/i_lockPeriod) * (50/100)
         // ==
-        // (user.amount * timeLeft * 50) / (i_lockPeriod * 100)
+        // (user.balance * timeLeft * 50) / (i_lockPeriod * 100)
         // ==
-        // (user.amount * timeLeft) / (i_lockPeriod * 2)
+        // (user.balance * timeLeft) / (i_lockPeriod * 2)
         return (user.balance * timeLeft) / (i_lockPeriod * 2);
+    }
+
+    function _dividendsOwing(address user) internal view returns (uint256) {
+        uint256 newDividendPoints = totalDividendPoints - users[user].lastDividendPoints;
+        return (users[user].balance * newDividendPoints) / POINT_MULTIPLIER;
     }
 }
