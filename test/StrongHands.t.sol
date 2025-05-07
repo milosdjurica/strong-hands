@@ -12,7 +12,7 @@ contract StrongHandsTest is Test {
     address BOB = makeAddr("BOB");
     address ALICE = makeAddr("ALICE");
 
-    event Deposited(address sender, uint256 amount, uint256 timestamp);
+    event Deposited(address indexed sender, uint256 indexed amount, uint256 indexed timestamp);
 
     function setUp() public {
         deployScript = new StrongHandsDeploy();

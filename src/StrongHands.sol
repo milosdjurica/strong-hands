@@ -8,16 +8,18 @@ contract StrongHands {
     error StrongHands__NotOwner(address msgSender, address owner);
     error StrongHands__ZeroDeposit();
     error StrongHands__ZeroAmount();
+    error StrongHands__TransferFailed();
 
     ////////////////////
     // * Events 	  //
     ////////////////////
-    event Deposited(address user, uint256 value, uint256 timestamp);
+    event Deposited(address indexed user, uint256 indexed amount, uint256 indexed timestamp);
+    event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
 
     ////////////////////
     // * Structs 	  //
     ////////////////////
-    struct User {
+    struct UserInfo {
         uint256 amount;
         uint256 lastDepositTimestamp;
     }
@@ -41,7 +43,7 @@ contract StrongHands {
     // sum of all user.amount
     uint256 public totalStaked;
     // mapping of all users in the system
-    mapping(address => User) public users;
+    mapping(address => UserInfo) public users;
 
     ////////////////////
     // * Modifiers 	  //
@@ -67,7 +69,7 @@ contract StrongHands {
     function deposit() external payable {
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
 
-        User storage user = users[msg.sender];
+        UserInfo storage user = users[msg.sender];
         user.amount += msg.value;
         user.lastDepositTimestamp = block.timestamp;
 
@@ -79,12 +81,24 @@ contract StrongHands {
     // must withdraw all, can not withdraw partially
     // penalty goes from 50% at start to the 0% at the end of lock period
     function withdraw() external {
-        User storage user = users[msg.sender];
-        if (user.amount == 0) revert StrongHands__ZeroAmount();
+        UserInfo storage user = users[msg.sender];
+        uint256 initialAmount = user.amount;
+        if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
-        uint256 fee = calculateFee(msg.sender);
+        uint256 penalty = calculatePenalty(msg.sender);
 
         user.amount = 0;
+        totalStaked -= initialAmount;
+
+        // TODO -> distribute penalty
+        // TODO -> check reentrancy
+
+        // transfer
+        uint256 payout = initialAmount - penalty;
+        (bool success,) = payable(msg.sender).call{value: payout}("");
+        if (!success) revert StrongHands__TransferFailed();
+
+        emit Withdrawn(msg.sender, payout, penalty, block.timestamp);
     }
 
     ////////////////////
@@ -108,17 +122,21 @@ contract StrongHands {
     ////////////////////
     // * View & Pure  //
     ////////////////////
-    function calculateFee(address userAddr) public view returns (uint256) {
-        User memory user = users[userAddr];
+
+    // TODO -> Should this be public?
+    function calculatePenalty(address userAddr) public view returns (uint256) {
+        UserInfo memory user = users[userAddr];
         uint256 unlockTimestamp = user.lastDepositTimestamp + i_lockPeriod;
         if (block.timestamp >= unlockTimestamp) return 0;
 
         uint256 timeLeft = unlockTimestamp - block.timestamp;
 
-        // TODO -> this could be optimized to -> uint256 fee = (timeLeft * user.amount) / (i_lockPeriod * 2);
-        // user.amount * (timeLeft/i_lockPeriod) * (50/100)
         // rewritten formula to minimize precision loss
-        uint256 fee = (timeLeft * PENALTY_START_PERCENT * user.amount) / (i_lockPeriod * 100);
-        return fee;
+        // user.amount * (timeLeft/i_lockPeriod) * (50/100)
+        // ==
+        // (user.amount * timeLeft * 50) / (i_lockPeriod * 100)
+        // ==
+        // (user.amount * timeLeft) / (i_lockPeriod * 2)
+        return (user.amount * timeLeft) / (i_lockPeriod * 2);
     }
 }
