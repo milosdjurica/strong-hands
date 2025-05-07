@@ -80,7 +80,7 @@ contract StrongHands {
         user.lastDepositTimestamp = block.timestamp;
 
         totalStaked += msg.value;
-
+        // TODO -> aave
         emit Deposited(msg.sender, msg.value, block.timestamp);
     }
 
@@ -96,14 +96,14 @@ contract StrongHands {
         uint256 penalty = calculatePenalty(msg.sender);
 
         user.balance = 0;
-        // TODO -> should do this line below after or before disburse? Prob before because then don't give points to user that is withdrawing
         totalStaked -= initialAmount;
 
         // totalStaked > 0 bcz cant divide by 0
         // disburse
         if (penalty > 0 && totalStaked > 0) {
             unclaimedDividends += penalty;
-            // * POINT_MULTIPLIER for precision loss
+            // penalty / totalStaked -> How much penalty for each wei that is staked
+            // * POINT_MULTIPLIER for precision
             totalDividendPoints += (penalty * POINT_MULTIPLIER) / totalStaked;
         }
 
@@ -166,6 +166,7 @@ contract StrongHands {
     }
 
     function _dividendsOwing(address user) internal view returns (uint256) {
+        // how many new points since this user last claimed
         uint256 newDividendPoints = totalDividendPoints - users[user].lastDividendPoints;
         return (users[user].balance * newDividendPoints) / POINT_MULTIPLIER;
     }
