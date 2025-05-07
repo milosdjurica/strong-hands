@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {IWrappedTokenGatewayV3} from "./interfaces/IWrappedTokenGatewayV3.sol";
+
 contract StrongHands {
     ////////////////////
     // * Errors 	  //
@@ -30,6 +32,7 @@ contract StrongHands {
     ////////////////////
     uint256 constant POINT_MULTIPLIER = 1e18;
     uint256 constant PENALTY_START_PERCENT = 50;
+    address constant AAVE_POOL = 0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951;
 
     ////////////////////
     // * Immutables	  //
@@ -38,6 +41,7 @@ contract StrongHands {
     uint256 public immutable i_lockPeriod;
     // owner of the contract
     address public immutable i_owner;
+    IWrappedTokenGatewayV3 public immutable i_aaveWrappedTokenGatewayV3;
 
     ////////////////////
     // * State        //
@@ -60,9 +64,10 @@ contract StrongHands {
     ////////////////////
     // * Constructor  //
     ////////////////////
-    constructor(uint256 _lockPeriod) {
+    constructor(uint256 _lockPeriod, IWrappedTokenGatewayV3 _wrappedTokenGatewayV3) {
         i_lockPeriod = _lockPeriod;
         i_owner = msg.sender;
+        i_aaveWrappedTokenGatewayV3 = _wrappedTokenGatewayV3;
     }
 
     ////////////////////
@@ -80,7 +85,9 @@ contract StrongHands {
         user.lastDepositTimestamp = block.timestamp;
 
         totalStaked += msg.value;
-        // TODO -> aave
+
+        // AAVE_POOL argument is not important as WrappedTokenGatewayV3 will always use its own address and ignore this one, although this pool address is correct at this point of time
+        i_aaveWrappedTokenGatewayV3.depositETH{value: msg.value}(AAVE_POOL, address(this), 0);
         emit Deposited(msg.sender, msg.value, block.timestamp);
     }
 
