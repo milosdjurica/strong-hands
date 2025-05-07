@@ -73,7 +73,7 @@ contract StrongHands {
     function deposit() external payable {
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
 
-        _updateUser();
+        _claimDividends();
 
         UserInfo storage user = users[msg.sender];
         user.balance += msg.value;
@@ -91,15 +91,19 @@ contract StrongHands {
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
-        _updateUser();
+        _claimDividends();
 
         uint256 penalty = calculatePenalty(msg.sender);
 
         user.balance = 0;
+        // TODO -> should do this line below after or before disburse? Prob before because then don't give points to user that is withdrawing
         totalStaked -= initialAmount;
 
-        if (penalty > 0) {
+        // totalStaked > 0 bcz cant divide by 0
+        // disburse
+        if (penalty > 0 && totalStaked > 0) {
             unclaimedDividends += penalty;
+            // * POINT_MULTIPLIER for precision loss
             totalDividendPoints += (penalty * POINT_MULTIPLIER) / totalStaked;
         }
 
@@ -126,7 +130,7 @@ contract StrongHands {
     ////////////////////
     // * Internal 	  //
     ////////////////////
-    function _updateUser() internal {
+    function _claimDividends() internal {
         UserInfo storage user = users[msg.sender];
         uint256 owing = _dividendsOwing(msg.sender);
         if (owing > 0) {
@@ -146,20 +150,19 @@ contract StrongHands {
 
     // TODO -> Should this be public?
     // TODO -> Could save some gas by passing user.lastDepositTimestamp and user.balance ?
-    function calculatePenalty(address userAddr) public view returns (uint256) {
-        UserInfo memory user = users[userAddr];
-        uint256 unlockTimestamp = user.lastDepositTimestamp + i_lockPeriod;
+    function calculatePenalty(address user) public view returns (uint256) {
+        uint256 unlockTimestamp = users[user].lastDepositTimestamp + i_lockPeriod;
         if (block.timestamp >= unlockTimestamp) return 0;
 
         uint256 timeLeft = unlockTimestamp - block.timestamp;
 
         // rewritten formula to minimize precision loss
-        // user.balance * (timeLeft/i_lockPeriod) * (50/100)
+        // users[user].balance * (timeLeft/i_lockPeriod) * (50/100)
         // ==
-        // (user.balance * timeLeft * 50) / (i_lockPeriod * 100)
+        // (users[user].balance * timeLeft * 50) / (i_lockPeriod * 100)
         // ==
-        // (user.balance * timeLeft) / (i_lockPeriod * 2)
-        return (user.balance * timeLeft) / (i_lockPeriod * 2);
+        // (users[user].balance * timeLeft) / (i_lockPeriod * 2)
+        return (users[user].balance * timeLeft) / (i_lockPeriod * 2);
     }
 
     function _dividendsOwing(address user) internal view returns (uint256) {
