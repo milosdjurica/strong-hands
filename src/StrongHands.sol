@@ -20,7 +20,7 @@ contract StrongHands {
     // * Structs 	  //
     ////////////////////
     struct UserInfo {
-        uint256 amount;
+        uint256 balance;
         uint256 lastDepositTimestamp;
         uint256 lastDividendPoints;
     }
@@ -62,7 +62,7 @@ contract StrongHands {
         uint256 owing = _dividendsOwing(msg.sender);
         if (owing > 0) {
             unclaimedDividends -= owing;
-            user.amount += owing;
+            user.balance += owing;
         }
         user.lastDividendPoints = totalDividendPoints;
         _;
@@ -70,7 +70,7 @@ contract StrongHands {
 
     function _dividendsOwing(address user) internal view returns (uint256) {
         uint256 newDividendPoints = totalDividendPoints - users[user].lastDividendPoints;
-        return users[user].amount * newDividendPoints / POINT_MULTIPLIER;
+        return users[user].balance * newDividendPoints / POINT_MULTIPLIER;
     }
 
     ////////////////////
@@ -90,7 +90,7 @@ contract StrongHands {
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
 
         UserInfo storage user = users[msg.sender];
-        user.amount += msg.value;
+        user.balance += msg.value;
         user.lastDepositTimestamp = block.timestamp;
 
         totalStaked += msg.value;
@@ -102,12 +102,12 @@ contract StrongHands {
     // penalty goes from 50% at start to the 0% at the end of lock period
     function withdraw() external updateUser {
         UserInfo storage user = users[msg.sender];
-        uint256 initialAmount = user.amount;
+        uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
         uint256 penalty = calculatePenalty(msg.sender);
 
-        user.amount = 0;
+        user.balance = 0;
         totalStaked -= initialAmount;
 
         // TODO -> distribute penalty
@@ -157,6 +157,6 @@ contract StrongHands {
         // (user.amount * timeLeft * 50) / (i_lockPeriod * 100)
         // ==
         // (user.amount * timeLeft) / (i_lockPeriod * 2)
-        return (user.amount * timeLeft) / (i_lockPeriod * 2);
+        return (user.balance * timeLeft) / (i_lockPeriod * 2);
     }
 }

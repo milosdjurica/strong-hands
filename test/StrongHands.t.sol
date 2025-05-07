@@ -39,9 +39,9 @@ contract StrongHandsTest is Test {
         emit Deposited(BOB, 1 ether, block.timestamp);
         strongHands.deposit{value: 1 ether}();
 
-        (uint256 amount, uint256 timestamp,) = strongHands.users(BOB);
+        (uint256 balance, uint256 timestamp,) = strongHands.users(BOB);
 
-        assertEq(amount, 1 ether);
+        assertEq(balance, 1 ether);
         assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 1 ether);
     }
@@ -54,9 +54,9 @@ contract StrongHandsTest is Test {
         emit Deposited(BOB, amountToDeposit, block.timestamp);
         strongHands.deposit{value: amountToDeposit}();
 
-        (uint256 amount, uint256 timestamp,) = strongHands.users(BOB);
+        (uint256 balance, uint256 timestamp,) = strongHands.users(BOB);
 
-        assertEq(amount, amountToDeposit);
+        assertEq(balance, amountToDeposit);
         assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), amountToDeposit);
     }
@@ -81,8 +81,8 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, 1 ether, 0, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,,) = strongHands.users(BOB);
-        assertEq(amount, 0);
+        (uint256 balance,,) = strongHands.users(BOB);
+        assertEq(balance, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
     }
@@ -93,8 +93,8 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, 0.5 ether, 0.5 ether, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,,) = strongHands.users(BOB);
-        assertEq(amount, 0);
+        (uint256 balance,,) = strongHands.users(BOB);
+        assertEq(balance, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
     }
@@ -107,8 +107,8 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, 0.75 ether, 0.25 ether, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,,) = strongHands.users(BOB);
-        assertEq(amount, 0);
+        (uint256 balance,,) = strongHands.users(BOB);
+        assertEq(balance, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
     }
@@ -126,8 +126,8 @@ contract StrongHandsTest is Test {
         emit Withdrawn(BOB, expectedPayout, expectedFee, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 amount,,) = strongHands.users(BOB);
-        assertEq(amount, 0);
+        (uint256 balance,,) = strongHands.users(BOB);
+        assertEq(balance, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
     }
