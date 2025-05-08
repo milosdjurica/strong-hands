@@ -41,8 +41,6 @@ contract StrongHands is Ownable {
     ////////////////////
     // fixed lock period duration (seconds)
     uint256 public immutable i_lockPeriod;
-    // owner of the contract
-    address public immutable i_owner;
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
     IPool public immutable i_pool;
     IWETH public immutable i_WETH;
@@ -77,7 +75,6 @@ contract StrongHands is Ownable {
         IERC20 _aEthWeth
     ) {
         i_lockPeriod = _lockPeriod;
-        i_owner = msg.sender;
         i_wrappedTokenGatewayV3 = _wrappedTokenGatewayV3;
         i_pool = _pool;
         i_WETH = _weth;

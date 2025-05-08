@@ -7,7 +7,7 @@ import {StrongHands} from "../../src/StrongHands.sol";
 contract StrongHandsUnitTest is SetupTestsTest {
     function test_constructor() public view {
         assertEq(strongHands.i_lockPeriod(), deployScript.LOCK_PERIOD());
-        assertEq(strongHands.i_owner(), msg.sender);
+        assertEq(strongHands.owner(), msg.sender);
     }
 
     // ! Deposit tests
