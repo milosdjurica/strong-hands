@@ -59,4 +59,78 @@ contract ForkTest is SetupTestsTest {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
         strongHands.withdraw();
     }
+
+    function testFork_withdraw_ZeroFee() public skipWhenNotForking depositWithBob {
+        assertEq(BOB.balance, 99 ether);
+
+        skip(deployScript.LOCK_PERIOD());
+        vm.prank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit Withdrawn(BOB, 1 ether, 0, block.timestamp);
+        strongHands.withdraw();
+
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        // ! Checks
+        assertEq(balance, 0);
+        assertEq(timestamp, block.timestamp - deployScript.LOCK_PERIOD());
+        assertEq(lastDividendPoints, 0);
+        assertEq(strongHands.totalStaked(), 0);
+        assertEq(strongHands.totalDividendPoints(), 0);
+        assertEq(BOB.balance, 100 ether);
+        // owner still has aEthWeth acquired from the BOB deposit
+        assertGt(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 0);
+
+        // TODO -> check if owner can pull those tokens later, check if can pull something before too (if owner can choose how much he wants out)
+        // uint256 balanceBefore = msg.sender.balance;
+        // strongHands.claimInterest();
+        // uint256 balanceAfter = msg.sender.balance;
+        // assertGt(balanceAfter, balanceBefore);
+    }
+
+    function testFork_withdraw_MaxFee() public skipWhenNotForking depositWithBob {
+        // Bob deposited and instantly withdraws
+        vm.prank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit Withdrawn(BOB, 0.5 ether, 0.5 ether, block.timestamp);
+        strongHands.withdraw();
+
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        assertEq(balance, 0);
+        assertEq(timestamp, block.timestamp);
+        assertEq(lastDividendPoints, 0);
+        assertEq(strongHands.totalStaked(), 0);
+        // totalDividendPoints would normally be 0.5, but in this case will be 0 because there is no other active users, so nobody can get those dividends
+        assertEq(strongHands.totalDividendPoints(), 0 ether);
+        assertEq(BOB.balance, 99.5 ether);
+        assertEq(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 0.5 ether);
+
+        skip(1111);
+        // StrongHands contracts keeps acquiring interest on aEthWeth until it is pulled out
+        assertGt(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 0.5 ether);
+    }
+
+    // Note -> This test will work properly only if LOCK_PERIOD % 2 == 0
+    function testFork_withdraw_MidFee() public skipWhenNotForking depositWithBob {
+        skip(deployScript.LOCK_PERIOD() / 2);
+        vm.prank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit Withdrawn(BOB, 0.75 ether, 0.25 ether, block.timestamp);
+        strongHands.withdraw();
+
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        assertEq(balance, 0);
+        assertEq(timestamp, block.timestamp - deployScript.LOCK_PERIOD() / 2);
+        assertEq(lastDividendPoints, 0);
+        assertEq(strongHands.totalStaked(), 0);
+        // totalDividendPoints would normally be 0.5, but in this case will be 0 because there is no other active users, so nobody can get those dividends
+        assertEq(strongHands.totalDividendPoints(), 0 ether);
+        assertEq(BOB.balance, 99.75 ether);
+        uint256 aEthWethBalance = strongHands.i_aEthWeth().balanceOf(address(strongHands));
+        assertGt(aEthWethBalance, 0.25 ether);
+
+        skip(1111);
+        // StrongHands contracts keeps acquiring interest on aEthWeth until it is pulled out
+        uint256 aEthWethBalanceAfterTimePassed = strongHands.i_aEthWeth().balanceOf(address(strongHands));
+        assertGt(aEthWethBalanceAfterTimePassed, aEthWethBalance);
+    }
 }

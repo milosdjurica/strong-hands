@@ -59,10 +59,6 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Modifiers 	  //
     ////////////////////
-    // modifier onlyOwner() {
-    //     if (msg.sender != i_owner) revert StrongHands__NotOwner(msg.sender, i_owner);
-    //     _;
-    // }
 
     ////////////////////
     // * Constructor  //
@@ -114,6 +110,7 @@ contract StrongHands is Ownable {
         uint256 penalty = calculatePenalty(msg.sender);
 
         user.balance = 0;
+        // TODO -> change this to -=payout
         totalStaked -= initialAmount;
 
         // totalStaked > 0 bcz cant divide by 0
@@ -130,6 +127,8 @@ contract StrongHands is Ownable {
         // transfer
         uint256 payout = initialAmount - penalty;
 
+        // approving aEthWeth transfer before withdrawing
+        i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), payout);
         i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), payout, msg.sender);
 
         emit Withdrawn(msg.sender, payout, penalty, block.timestamp);
