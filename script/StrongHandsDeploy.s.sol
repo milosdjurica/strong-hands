@@ -46,7 +46,7 @@ contract StrongHandsDeploy is Script {
             pool = IPool(address(poolMock));
             weth = IWETH(address(wethMock));
             aWeth = IERC20(address(aTokenMock));
-        } else {
+        } else if (block.chainid == 11155111) {
             // Sepolia addresses
             wrappedGateway = WRAPPED_TOKEN_GATEWAY_V3;
             pool = POOL;
