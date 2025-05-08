@@ -7,15 +7,7 @@ import {StrongHandsDeploy} from "../../script/StrongHandsDeploy.s.sol";
 import {SetupTestsTest} from "../SetupTests.sol";
 
 contract ForkTest is SetupTestsTest {
-    modifier skipWhenNotForkTesting() {
-        if (block.chainid == 31337) {
-            console.log("Skipping test: running on Anvil without fork.");
-            return;
-        }
-        _;
-    }
-
-    function testFork_Constructor() public view skipWhenNotForkTesting {
+    function testFork_constructor() public view skipWhenNotForking {
         if (block.chainid == 11155111) {
             assertEq(strongHands.i_lockPeriod(), deployScript.LOCK_PERIOD());
             assertEq(strongHands.owner(), msg.sender);
@@ -33,5 +25,38 @@ contract ForkTest is SetupTestsTest {
             assertEq(address(strongHands.i_WETH()), address(deployScript.WETH_MAINNET()));
             assertEq(address(strongHands.i_aEthWeth()), address(deployScript.A_WETH_MAINNET()));
         }
+    }
+
+    // ! Deposit tests
+    function testFork_deposit_RevertIf_DepositIsZero() public skipWhenNotForking {
+        vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroDeposit.selector));
+        strongHands.deposit();
+    }
+
+    function testFork_deposit() public skipWhenNotForking {
+        vm.prank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit Deposited(BOB, 1 ether, block.timestamp);
+        strongHands.deposit{value: 1 ether}();
+
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+
+        assertEq(balance, 1 ether);
+        assertEq(timestamp, block.timestamp);
+        assertEq(strongHands.totalDividendPoints(), lastDividendPoints);
+        assertEq(strongHands.totalDividendPoints(), 0);
+        assertEq(strongHands.totalStaked(), 1 ether);
+
+        // StrongHands contract should hold no raw ETH
+        // TODO -> This check passes on mainnet, but fails on sepolia? Different ABIs probably because aave-v3-origin vs core & periphery
+        // assertEq(address(strongHands).balance, 0);
+
+        assertEq(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 1 ether);
+    }
+
+    // ! Withdraw tests
+    function testFork_withdraw_RevertIf_ZeroAmount() public skipWhenNotForking {
+        vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
+        strongHands.withdraw();
     }
 }

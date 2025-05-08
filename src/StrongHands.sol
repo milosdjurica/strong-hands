@@ -39,7 +39,7 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Immutables	  //
     ////////////////////
-    // fixed lock period duration (seconds)
+    // lock period duration (seconds)
     uint256 public immutable i_lockPeriod;
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
     IPool public immutable i_pool;
@@ -53,8 +53,8 @@ contract StrongHands is Ownable {
     uint256 public totalStaked;
     // mapping of all users in the system
     mapping(address => UserInfo) public users;
-    uint256 totalDividendPoints;
-    uint256 unclaimedDividends;
+    uint256 public totalDividendPoints;
+    uint256 public unclaimedDividends;
 
     ////////////////////
     // * Modifiers 	  //
@@ -139,7 +139,9 @@ contract StrongHands is Ownable {
     // * Only Owner   //
     ////////////////////
     // ONLY OWNER can call this function. He can call it at any moment
-    function claimInterest() external onlyOwner {}
+    function claimInterest() external onlyOwner {
+        // TODO -> finish this function !!!
+    }
 
     ////////////////////
     // * Public 	  //
