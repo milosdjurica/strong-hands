@@ -2,12 +2,16 @@
 pragma solidity ^0.8.13;
 
 import {IWrappedTokenGatewayV3} from "@aave/v3-origin/contracts/helpers/interfaces/IWrappedTokenGatewayV3.sol";
+import {Ownable} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contracts/Ownable.sol";
+import {IPool} from "@aave/v3-origin/contracts/interfaces/IPool.sol";
+import {IWETH} from "@aave/v3-origin/contracts/helpers/interfaces/IWETH.sol";
+import {IERC20} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 
-contract StrongHands {
+contract StrongHands is Ownable {
     ////////////////////
     // * Errors 	  //
     ////////////////////
-    error StrongHands__NotOwner(address msgSender, address owner);
+    // error StrongHands__NotOwner(address msgSender, address owner);
     error StrongHands__ZeroDeposit();
     error StrongHands__ZeroAmount();
 
@@ -40,9 +44,9 @@ contract StrongHands {
     // owner of the contract
     address public immutable i_owner;
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
-    address public immutable i_pool;
-    address public immutable i_WETH;
-    address public immutable i_aEthWeth;
+    IPool public immutable i_pool;
+    IWETH public immutable i_WETH;
+    IERC20 public immutable i_aEthWeth;
 
     ////////////////////
     // * State        //
@@ -57,10 +61,10 @@ contract StrongHands {
     ////////////////////
     // * Modifiers 	  //
     ////////////////////
-    modifier onlyOwner() {
-        if (msg.sender != i_owner) revert StrongHands__NotOwner(msg.sender, i_owner);
-        _;
-    }
+    // modifier onlyOwner() {
+    //     if (msg.sender != i_owner) revert StrongHands__NotOwner(msg.sender, i_owner);
+    //     _;
+    // }
 
     ////////////////////
     // * Constructor  //
@@ -68,9 +72,9 @@ contract StrongHands {
     constructor(
         uint256 _lockPeriod,
         IWrappedTokenGatewayV3 _wrappedTokenGatewayV3,
-        address _pool,
-        address _weth,
-        address _aEthWeth
+        IPool _pool,
+        IWETH _weth,
+        IERC20 _aEthWeth
     ) {
         i_lockPeriod = _lockPeriod;
         i_owner = msg.sender;
@@ -97,7 +101,7 @@ contract StrongHands {
         totalStaked += msg.value;
 
         // AAVE_POOL argument is not important as WrappedTokenGatewayV3 will always use its own address and ignore this one, although this pool address is correct at this point of time
-        i_wrappedTokenGatewayV3.depositETH{value: msg.value}(i_pool, address(this), 0);
+        i_wrappedTokenGatewayV3.depositETH{value: msg.value}(address(i_pool), address(this), 0);
         emit Deposited(msg.sender, msg.value, block.timestamp);
     }
 
@@ -129,7 +133,7 @@ contract StrongHands {
         // transfer
         uint256 payout = initialAmount - penalty;
 
-        i_wrappedTokenGatewayV3.withdrawETH(i_pool, payout, msg.sender);
+        i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), payout, msg.sender);
 
         emit Withdrawn(msg.sender, payout, penalty, block.timestamp);
     }
