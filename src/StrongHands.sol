@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {IWrappedTokenGatewayV3} from "@aave/v3-origin/contracts/helpers/interfaces/IWrappedTokenGatewayV3.sol";
+
 contract StrongHands {
     ////////////////////
     // * Errors 	  //
@@ -8,7 +10,6 @@ contract StrongHands {
     error StrongHands__NotOwner(address msgSender, address owner);
     error StrongHands__ZeroDeposit();
     error StrongHands__ZeroAmount();
-    error StrongHands__TransferFailed();
 
     ////////////////////
     // * Events 	  //
@@ -38,6 +39,10 @@ contract StrongHands {
     uint256 public immutable i_lockPeriod;
     // owner of the contract
     address public immutable i_owner;
+    IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
+    address public immutable i_pool;
+    address public immutable i_WETH;
+    address public immutable i_aEthWeth;
 
     ////////////////////
     // * State        //
@@ -60,9 +65,19 @@ contract StrongHands {
     ////////////////////
     // * Constructor  //
     ////////////////////
-    constructor(uint256 _lockPeriod) {
+    constructor(
+        uint256 _lockPeriod,
+        IWrappedTokenGatewayV3 _wrappedTokenGatewayV3,
+        address _pool,
+        address _weth,
+        address _aEthWeth
+    ) {
         i_lockPeriod = _lockPeriod;
         i_owner = msg.sender;
+        i_wrappedTokenGatewayV3 = _wrappedTokenGatewayV3;
+        i_pool = _pool;
+        i_WETH = _weth;
+        i_aEthWeth = _aEthWeth;
     }
 
     ////////////////////
@@ -80,7 +95,9 @@ contract StrongHands {
         user.lastDepositTimestamp = block.timestamp;
 
         totalStaked += msg.value;
-        // TODO -> aave
+
+        // AAVE_POOL argument is not important as WrappedTokenGatewayV3 will always use its own address and ignore this one, although this pool address is correct at this point of time
+        i_wrappedTokenGatewayV3.depositETH{value: msg.value}(i_pool, address(this), 0);
         emit Deposited(msg.sender, msg.value, block.timestamp);
     }
 
@@ -111,8 +128,8 @@ contract StrongHands {
 
         // transfer
         uint256 payout = initialAmount - penalty;
-        (bool success,) = payable(msg.sender).call{value: payout}("");
-        if (!success) revert StrongHands__TransferFailed();
+
+        i_wrappedTokenGatewayV3.withdrawETH(i_pool, payout, msg.sender);
 
         emit Withdrawn(msg.sender, payout, penalty, block.timestamp);
     }
