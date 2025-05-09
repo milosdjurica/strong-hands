@@ -59,18 +59,6 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Modifiers 	  //
     ////////////////////
-    modifier claimDividends() {
-        UserInfo storage user = users[msg.sender];
-        uint256 owing = _dividendsOwing(msg.sender);
-        if (owing > 0) {
-            unclaimedDividends -= owing;
-            user.balance += owing;
-            user.lastDividendPoints = totalDividendPoints;
-            // ! IMPORTANT CHANGE !!!!!!!!!!!!!! Solution for distributing properly rewards
-            totalStaked += owing;
-        }
-        _;
-    }
 
     ////////////////////
     // * Constructor  //
@@ -92,13 +80,10 @@ contract StrongHands is Ownable {
     ////////////////////
     // * External 	  //
     ////////////////////
-
-    // This function should be callable by users to claim rewards. Also automatically called when deposit/withdraw is called
-    function claimRewards() public {}
-
     // can deposit multiple times
     // depositing starts new lock period counting for user
-    function deposit() external payable claimDividends {
+    function deposit() external payable {
+        claimRewards();
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
 
         UserInfo storage user = users[msg.sender];
@@ -114,7 +99,8 @@ contract StrongHands is Ownable {
 
     // must withdraw all, can not withdraw partially
     // penalty goes from 50% at start to the 0% at the end of lock period
-    function withdraw() external claimDividends {
+    function withdraw() external {
+        claimRewards();
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
@@ -157,6 +143,19 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Public 	  //
     ////////////////////
+    // This function should be callable by users to claim rewards. Also automatically called when deposit/withdraw is called
+    // PUBLIC !!!
+    function claimRewards() public {
+        UserInfo storage user = users[msg.sender];
+        uint256 owing = _dividendsOwing(msg.sender);
+        if (owing > 0) {
+            unclaimedDividends -= owing;
+            user.balance += owing;
+            user.lastDividendPoints = totalDividendPoints;
+            // ! IMPORTANT CHANGE !!!!!!!!!!!!!! Solution for distributing properly rewards
+            totalStaked += owing;
+        }
+    }
 
     ////////////////////
     // * Internal 	  //
