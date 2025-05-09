@@ -35,7 +35,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.withdraw();
     }
 
-    function test_withdraw_ZeroFee() public depositWith(BOB, 1 ether) {
+    function test_withdraw_ZeroPenalty() public depositWith(BOB, 1 ether) {
         skip(deployScript.LOCK_PERIOD());
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
@@ -49,7 +49,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         // TODO in those tests add additional checks
     }
 
-    function test_withdraw_MaxFee() public depositWith(BOB, 1 ether) {
+    function test_withdraw_MaxPenalty() public depositWith(BOB, 1 ether) {
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
         emit Withdrawn(BOB, 0.5 ether, 0.5 ether, block.timestamp);
@@ -62,7 +62,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
     }
 
     // ! Note -> This test will work only if LOCK_PERIOD % 2 == 0
-    function test_withdraw_MidFee() public depositWith(BOB, 1 ether) {
+    function test_withdraw_MidPenalty() public depositWith(BOB, 1 ether) {
         skip(deployScript.LOCK_PERIOD() / 2);
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);

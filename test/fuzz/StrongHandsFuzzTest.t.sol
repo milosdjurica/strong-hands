@@ -5,6 +5,8 @@ import {SetupTestsTest} from "../SetupTests.sol";
 import {StrongHands} from "../../src/StrongHands.sol";
 
 contract StrongHandsFuzzTest is SetupTestsTest {
+    // TODO -> Write tests for other functions
+
     // ! Deposit tests
     function testFuzz_deposit(uint256 amountToDeposit) public {
         amountToDeposit = bound(amountToDeposit, 1, 100 ether);
@@ -22,17 +24,17 @@ contract StrongHandsFuzzTest is SetupTestsTest {
     }
 
     // ! Withdraw tests
-    function testFuzz_withdraw_RandomFee(uint256 timePassed) public depositWith(BOB, 1 ether) {
+    function testFuzz_withdraw_RandomPenalty(uint256 timePassed) public depositWith(BOB, 1 ether) {
         timePassed = bound(timePassed, 0, deployScript.LOCK_PERIOD());
         skip(timePassed);
         uint256 timeLeft = deployScript.LOCK_PERIOD() - timePassed;
 
-        uint256 expectedFee = 1 ether * timeLeft / deployScript.LOCK_PERIOD() * 50 / 100;
-        uint256 expectedPayout = 1 ether - expectedFee;
+        uint256 expectedPenalty = 1 ether * timeLeft / deployScript.LOCK_PERIOD() * 50 / 100;
+        uint256 expectedPayout = 1 ether - expectedPenalty;
 
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
-        emit Withdrawn(BOB, expectedPayout, expectedFee, block.timestamp);
+        emit Withdrawn(BOB, expectedPayout, expectedPenalty, block.timestamp);
         strongHands.withdraw();
 
         (uint256 balance,,) = strongHands.users(BOB);
