@@ -92,6 +92,10 @@ contract StrongHands is Ownable {
     ////////////////////
     // * External 	  //
     ////////////////////
+
+    // This function should be callable by users to claim rewards. Also automatically called when deposit/withdraw is called
+    function claimRewards() public {}
+
     // can deposit multiple times
     // depositing starts new lock period counting for user
     function deposit() external payable claimDividends {
@@ -120,6 +124,7 @@ contract StrongHands is Ownable {
         user.balance = 0;
         uint256 payout = initialAmount - penalty;
         // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
+        // Maybe move this after disburse???
         totalStaked -= initialAmount;
 
         // totalStaked > 0 bcz cant divide by 0
