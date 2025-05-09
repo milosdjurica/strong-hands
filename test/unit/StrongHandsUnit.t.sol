@@ -12,7 +12,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
     }
 
     /////////////////////////
-    // * Deposit Tests     //
+    // * deposit() Tests   //
     /////////////////////////
     function test_deposit_RevertIf_DepositIsZero() public {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroDeposit.selector));
@@ -60,7 +60,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
     }
 
     /////////////////////////
-    // * Deposit Tests     //
+    // * withdraw() Tests  //
     /////////////////////////
     function test_withdraw_RevertIf_ZeroAmount() public {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
@@ -74,6 +74,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         emit Withdrawn(BOB, 1 ether, 0, block.timestamp);
         strongHands.withdraw();
 
+        // ! Check Bob
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD);
@@ -92,6 +93,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         emit Withdrawn(BOB, 0.5 ether, 0.5 ether, block.timestamp);
         strongHands.withdraw();
 
+        // ! Check Bob
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp);
@@ -111,6 +113,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         emit Withdrawn(BOB, 0.75 ether, 0.25 ether, block.timestamp);
         strongHands.withdraw();
 
+        // ! Check Bob
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD / 2);
@@ -121,6 +124,110 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 0 ether); // it is 0 because there are no other users in the system -> no one to claim
         assertEq(strongHands.totalDividendPoints(), 0 ether);
     }
+
+    ////////////////////////////
+    // * claimRewards() Tests //
+    ////////////////////////////
+    function test_claimRewards_NoUpdate() public depositWith(BOB, 1 ether) {
+        vm.prank(BOB);
+        strongHands.claimRewards();
+
+        // ! Check Bob
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        assertEq(balance, 1 ether);
+        assertEq(timestamp, block.timestamp);
+        assertEq(lastDividendPoints, 0);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 1 ether);
+        assertEq(strongHands.unclaimedDividends(), 0);
+        assertEq(strongHands.totalDividendPoints(), 0);
+    }
+
+    function test_claimRewards_NoUpdate_MultipleDeposits()
+        public
+        depositWith(ALICE, 1 ether)
+        depositWith(BOB, 1 ether)
+    {
+        vm.startPrank(BOB);
+        strongHands.claimRewards();
+        strongHands.deposit{value: 1 ether}();
+        strongHands.claimRewards();
+        vm.stopPrank();
+
+        // ! Check Bob
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        assertEq(balance, 2 ether);
+        assertEq(timestamp, block.timestamp);
+        assertEq(lastDividendPoints, 0);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 3 ether);
+        assertEq(strongHands.unclaimedDividends(), 0);
+        assertEq(strongHands.totalDividendPoints(), 0);
+    }
+
+    function test_claimRewards_Update() public depositWith(ALICE, 1 ether) depositWith(BOB, 1 ether) {
+        vm.prank(BOB);
+        strongHands.claimRewards();
+
+        // ! Alice pays 50% -> 0.5 eth
+        vm.prank(ALICE);
+        strongHands.withdraw();
+
+        vm.startPrank(BOB);
+        strongHands.deposit{value: 1 ether}();
+        strongHands.claimRewards();
+        vm.stopPrank();
+
+        // ! Check Bob
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        assertEq(balance, 2.5 ether); // 1 + 1 from deposits + 0.5 from alice
+        assertEq(timestamp, block.timestamp);
+        assertEq(lastDividendPoints, 0.5 ether);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 2.5 ether);
+        assertEq(strongHands.unclaimedDividends(), 0);
+        assertEq(strongHands.totalDividendPoints(), 0.5 ether);
+
+        // ! Bob withdraws without penalty
+        skip(LOCK_PERIOD);
+        vm.prank(BOB);
+        strongHands.withdraw();
+
+        // ! Charlie enters
+        vm.prank(CHARLIE);
+        strongHands.deposit{value: 1 ether}();
+
+        // ! Alice enters and  withdraws with 50% penalty. Bob is not in the system, he should not be able to get reward later
+        vm.startPrank(ALICE);
+        strongHands.deposit{value: 1 ether}();
+        strongHands.withdraw();
+        vm.stopPrank();
+
+        // ! Bob enters
+        vm.startPrank(BOB);
+        strongHands.deposit{value: 1 ether}();
+        strongHands.claimRewards();
+        vm.stopPrank();
+
+        // ! Check Bob
+        (uint256 balanceBobAfter, uint256 timestampBobAfter, uint256 lastDividendPointsBobAfter) =
+            strongHands.users(BOB);
+        assertEq(balanceBobAfter, 1 ether); // 1 + 1 from deposits + 0.5 from alice
+        assertEq(timestampBobAfter, block.timestamp);
+        assertEq(lastDividendPointsBobAfter, 1 ether); // 0.5 when bob was in system, and 0.5 when he wasn't in system, only Charlie was
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 2 ether); // Charlie 1 + Bob 1
+        assertEq(strongHands.unclaimedDividends(), 0.5 ether); // Charlie didn't claim his
+        assertEq(strongHands.totalDividendPoints(), 1 ether); // 0.5 + 0.5
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /////////////////////////
     // * Integration Test  //
