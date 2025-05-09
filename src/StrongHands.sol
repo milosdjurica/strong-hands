@@ -11,20 +11,38 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Errors 	  //
     ////////////////////
+    /// @notice Thrown when a user attempts to deposit 0 ETH.
     error StrongHands__ZeroDeposit();
+    /// @notice Thrown when a user tries to withdraw with 0 balance or when owner tries to claim yield passing 0 amount as a parameter.
     error StrongHands__ZeroAmount();
+    /// @notice Thrown when the owner tries to claim more yield than available.
+    /// @param desiredAmount The amount the owner tried to withdraw.
+    /// @param actualYield The actual available yield for withdrawal.
     error StrongHands__NotEnoughYield(uint256 desiredAmount, uint256 actualYield);
 
     ////////////////////
     // * Events 	  //
     ////////////////////
 
+    /// @notice Emitted when a user deposits/stakes ETH.
+    /// @param user The address of the depositor.
+    /// @param amount The amount of ETH deposited.
+    /// @param timestamp The timestamp of deposit.
     event Deposited(address indexed user, uint256 indexed amount, uint256 indexed timestamp);
+    /// @notice Emitted when a user withdraws/unstake ETH.
+    /// @param user The address of the withdrawer.
+    /// @param payout The final amount user received (after penalty).
+    /// @param penalty The penalty amount redistributed to other users. Will be 0 if user withdraws after his `i_lockPeriod` has passed.
+    /// @param timestamp The timestamp of withdrawal.
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
 
     ////////////////////
     // * Structs 	  //
     ////////////////////
+    /// @notice Stores individual user staking info
+    /// @param balance The amount of ETH deposited by the user
+    /// @param lastDepositTimestamp The timestamp of the user's last deposit
+    /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `claimRewards()` function is called directly
     struct UserInfo {
         uint256 balance;
         uint256 lastDepositTimestamp;
@@ -34,15 +52,24 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Constants	  //
     ////////////////////
+    /// @notice Precision multiplier for dividend point calculations.
+    /// @dev Used to avoid loss of precision when distributing penalties as dividends.
     uint256 public constant POINT_MULTIPLIER = 1e18;
+    /// @notice Initial penalty percentage (50%) applied immediately upon early withdrawal.
+    /// @dev Linearly decreases over the lock period down to 0%.
+    // TODO -> not using this constant, should remove it
     uint256 public constant PENALTY_START_PERCENT = 50;
 
     ////////////////////
     // * Immutables	  //
     ////////////////////
-    // lock period duration (seconds)
+    /// @notice Duration (in seconds) during which early withdrawals are subject to penalties.
+    /// @notice Users can withdraw at any time, but penalties apply if they withdraw before this period ends.
     uint256 public immutable i_lockPeriod;
+    /// @notice Aave V3 WrappedTokenGatewayV3 contract for depositing and withdrawing ETH in the Aave V3 lending pool.
+    /// @dev Aave V3 WrappedTokenGatewayV3 contract that wraps/unwraps raw ETH into/from WETH and deposits/withdraw from Aave V3 lending pool.
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
+    /// @notice Aave V3 lending pool contract.
     IPool public immutable i_pool;
     // TODO -> probably won't even need i_WETH
     IWETH public immutable i_WETH;

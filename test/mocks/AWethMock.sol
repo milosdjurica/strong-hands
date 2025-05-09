@@ -6,7 +6,7 @@ import {IERC20} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contra
 contract AWethMock is IERC20 {
     function totalSupply() external view override returns (uint256) {}
 
-    function balanceOf(address account) external view override returns (uint256) {
+    function balanceOf(address) external pure override returns (uint256) {
         // mock value
         return 1 ether;
     }
