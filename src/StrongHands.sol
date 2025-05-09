@@ -11,7 +11,6 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Errors 	  //
     ////////////////////
-    // error StrongHands__NotOwner(address msgSender, address owner);
     error StrongHands__ZeroDeposit();
     error StrongHands__ZeroAmount();
 
@@ -33,16 +32,14 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Constants	  //
     ////////////////////
-    uint256 constant POINT_MULTIPLIER = 1e18;
-    uint256 constant PENALTY_START_PERCENT = 50;
+    uint256 public constant POINT_MULTIPLIER = 1e18;
+    uint256 public constant PENALTY_START_PERCENT = 50;
 
     ////////////////////
     // * Immutables	  //
     ////////////////////
-    // fixed lock period duration (seconds)
+    // lock period duration (seconds)
     uint256 public immutable i_lockPeriod;
-    // owner of the contract
-    address public immutable i_owner;
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
     IPool public immutable i_pool;
     IWETH public immutable i_WETH;
@@ -55,16 +52,12 @@ contract StrongHands is Ownable {
     uint256 public totalStaked;
     // mapping of all users in the system
     mapping(address => UserInfo) public users;
-    uint256 totalDividendPoints;
-    uint256 unclaimedDividends;
+    uint256 public totalDividendPoints;
+    uint256 public unclaimedDividends;
 
     ////////////////////
     // * Modifiers 	  //
     ////////////////////
-    // modifier onlyOwner() {
-    //     if (msg.sender != i_owner) revert StrongHands__NotOwner(msg.sender, i_owner);
-    //     _;
-    // }
 
     ////////////////////
     // * Constructor  //
@@ -77,7 +70,6 @@ contract StrongHands is Ownable {
         IERC20 _aEthWeth
     ) {
         i_lockPeriod = _lockPeriod;
-        i_owner = msg.sender;
         i_wrappedTokenGatewayV3 = _wrappedTokenGatewayV3;
         i_pool = _pool;
         i_WETH = _weth;
@@ -90,9 +82,8 @@ contract StrongHands is Ownable {
     // can deposit multiple times
     // depositing starts new lock period counting for user
     function deposit() external payable {
+        claimRewards();
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
-
-        _claimDividends();
 
         UserInfo storage user = users[msg.sender];
         user.balance += msg.value;
@@ -108,15 +99,17 @@ contract StrongHands is Ownable {
     // must withdraw all, can not withdraw partially
     // penalty goes from 50% at start to the 0% at the end of lock period
     function withdraw() external {
+        claimRewards();
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
-        _claimDividends();
-
         uint256 penalty = calculatePenalty(msg.sender);
 
         user.balance = 0;
+        uint256 payout = initialAmount - penalty;
+        // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
+        // Maybe move this after disburse???
         totalStaked -= initialAmount;
 
         // totalStaked > 0 bcz cant divide by 0
@@ -130,9 +123,8 @@ contract StrongHands is Ownable {
 
         // TODO -> check reentrancy
 
-        // transfer
-        uint256 payout = initialAmount - penalty;
-
+        // !  approving aEthWeth transfer before withdrawing
+        i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), payout);
         i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), payout, msg.sender);
 
         emit Withdrawn(msg.sender, payout, penalty, block.timestamp);
@@ -142,25 +134,31 @@ contract StrongHands is Ownable {
     // * Only Owner   //
     ////////////////////
     // ONLY OWNER can call this function. He can call it at any moment
-    function claimInterest() external onlyOwner {}
+    function claimInterest() external onlyOwner {
+        // TODO -> finish this function !!!
+        // TODO -> Important to note that user will never be able to pull out unclaimed dividends. Even if first used gets in and goes out and gets punished and there is no one to collect the prize, user also wont be able to do it. This amount would stay forever to keep acquiring the interest
+    }
 
     ////////////////////
     // * Public 	  //
     ////////////////////
-
-    ////////////////////
-    // * Internal 	  //
-    ////////////////////
-    function _claimDividends() internal {
+    // This function should be callable by users to claim rewards. Also automatically called when deposit/withdraw is called
+    // PUBLIC !!!
+    function claimRewards() public {
         UserInfo storage user = users[msg.sender];
         uint256 owing = _dividendsOwing(msg.sender);
         if (owing > 0) {
             unclaimedDividends -= owing;
             user.balance += owing;
+            totalStaked += owing;
         }
+        // This is updated every time, because we want to update user when he enters first time too
         user.lastDividendPoints = totalDividendPoints;
     }
 
+    ////////////////////
+    // * Internal 	  //
+    ////////////////////
     ////////////////////
     // * Private 	  //
     ////////////////////
