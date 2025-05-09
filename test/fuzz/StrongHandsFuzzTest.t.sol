@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {console} from "forge-std/Test.sol";
 import {SetupTestsTest} from "../SetupTests.sol";
 import {StrongHands} from "../../src/StrongHands.sol";
 
 contract StrongHandsFuzzTest is SetupTestsTest {
     // TODO -> Write tests for other functions
 
-    // ! Deposit tests
+    ////////////////////////////
+    // * deposit() tests 	  //
+    ////////////////////////////
     function testFuzz_deposit(uint256 amountToDeposit) public {
         amountToDeposit = bound(amountToDeposit, 1, 100 ether);
 
@@ -23,7 +26,9 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         assertEq(strongHands.totalStaked(), amountToDeposit);
     }
 
-    // ! Withdraw tests
+    ////////////////////////////
+    // * withdraw() tests 	  //
+    ////////////////////////////
     function testFuzz_withdraw_RandomPenalty(uint256 timePassed) public depositWith(BOB, 1 ether) {
         timePassed = bound(timePassed, 0, LOCK_PERIOD);
         skip(timePassed);
@@ -41,5 +46,34 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         assertEq(balance, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
+    }
+
+    ////////////////////////////////
+    // * calculatePenalty() tests //
+    ////////////////////////////////
+    function testFuzz_CalculatePenalty(uint64 amountBob, uint64 amountAlice, uint256 skipValue) public {
+        // ! Not 0 to avoid revert
+        vm.assume(amountAlice != 0);
+        vm.assume(amountBob != 0);
+        skipValue = bound(skipValue, 1, block.timestamp + LOCK_PERIOD - 1);
+
+        // ! Deposits
+        vm.prank(BOB);
+        strongHands.deposit{value: amountBob}();
+        vm.prank(ALICE);
+        strongHands.deposit{value: amountAlice}();
+
+        // ! Skip to have random penalty.
+        skip(skipValue);
+        vm.prank(BOB);
+        uint256 penalty = strongHands.calculatePenalty(BOB);
+
+        (uint256 balance, uint256 lastDepositTimestamp,) = strongHands.users(BOB);
+
+        uint256 unlockTimestamp = lastDepositTimestamp + LOCK_PERIOD;
+        uint256 timeLeft = unlockTimestamp - block.timestamp;
+        uint256 expectedPenalty = balance * timeLeft / LOCK_PERIOD / 2;
+
+        assertEq(penalty, expectedPenalty);
     }
 }
