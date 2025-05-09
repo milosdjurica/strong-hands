@@ -31,17 +31,12 @@ contract StrongHandsDeploy is Script {
     IERC20 public constant A_WETH_MAINNET = IERC20(0x4d5F47FA6A74757f35C14fD3a6Ef8E3C9BC514E8);
 
     StrongHands public strongHands;
+    IWrappedTokenGatewayV3 wrappedTokenGatewayV3;
+    IPool pool;
+    IWETH weth;
+    IERC20 aWeth;
 
-    function setUp() public {}
-
-    function run() public returns (StrongHands) {
-        vm.startBroadcast();
-
-        IWrappedTokenGatewayV3 wrappedGateway;
-        IPool pool;
-        IWETH weth;
-        IERC20 aWeth;
-
+    function setUp() public {
         if (block.chainid == 31337) {
             // Deploy mocks
             WrappedTokenGatewayV3Mock gatewayMock = new WrappedTokenGatewayV3Mock();
@@ -49,26 +44,29 @@ contract StrongHandsDeploy is Script {
             WETHMock wethMock = new WETHMock();
             AWethMock aTokenMock = new AWethMock();
 
-            wrappedGateway = IWrappedTokenGatewayV3(address(gatewayMock));
+            wrappedTokenGatewayV3 = IWrappedTokenGatewayV3(address(gatewayMock));
             pool = IPool(address(poolMock));
             weth = IWETH(address(wethMock));
             aWeth = IERC20(address(aTokenMock));
         } else if (block.chainid == 11155111) {
             // Sepolia addresses
-            wrappedGateway = WRAPPED_TOKEN_GATEWAY_V3;
+            wrappedTokenGatewayV3 = WRAPPED_TOKEN_GATEWAY_V3;
             pool = POOL;
             weth = WETH;
             aWeth = A_WETH;
         } else {
             // Mainnet
-            wrappedGateway = WRAPPED_TOKEN_GATEWAY_V3_MAINNET;
+            wrappedTokenGatewayV3 = WRAPPED_TOKEN_GATEWAY_V3_MAINNET;
             pool = POOL_MAINNET;
             weth = WETH_MAINNET;
             aWeth = A_WETH_MAINNET;
         }
+    }
 
-        strongHands = new StrongHands(LOCK_PERIOD, wrappedGateway, pool, weth, aWeth);
-
+    function run() public returns (StrongHands) {
+        setUp();
+        vm.startBroadcast();
+        strongHands = new StrongHands(LOCK_PERIOD, wrappedTokenGatewayV3, pool, weth, aWeth);
         vm.stopBroadcast();
 
         return strongHands;
