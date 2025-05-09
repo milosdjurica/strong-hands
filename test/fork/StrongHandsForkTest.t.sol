@@ -94,14 +94,14 @@ contract ForkTest is SetupTestsTest {
         emit Withdrawn(BOB, 0.5 ether, 0.5 ether, block.timestamp);
         strongHands.withdraw();
 
-        // ! StrongHands Checks
+        // ! Check StrongHands
         uint256 aEthWethBeforeSkip = strongHands.i_aEthWeth().balanceOf(address(strongHands));
         assertEq(aEthWethBeforeSkip, 0.5 ether);
         assertEq(strongHands.totalStaked(), 0);
         // totalDividendPoints would normally be 0.5, but in this case will be 0 because there is no other active users, so nobody can get those dividends
         assertEq(strongHands.totalDividendPoints(), 0 ether);
 
-        // ! Bob Checks
+        // ! Check Bob
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(BOB.balance, 99.5 ether);
         assertEq(balance, 0);
@@ -348,8 +348,35 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 6 ether);
         assertEq(strongHands.totalDividendPoints(), 1 ether);
 
-        // TODO -> Jane Enters, Someone else enters and pays fee. How much Jane will get?
+        // ! Jane deposits
         vm.prank(JANE);
         strongHands.deposit{value: 6 ether}();
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 12 ether);
+        assertEq(strongHands.unclaimedDividends(), 6 ether);
+        assertEq(strongHands.totalDividendPoints(), 1 ether);
+
+        // ! Mia deposits and withdraws immediately -> Pays penalty 50% == 18 ether
+        vm.startPrank(MIA);
+        strongHands.deposit{value: 36 ether}();
+        strongHands.withdraw();
+        vm.stopPrank();
+
+        // ! Jane withdraws after her LOCK_TIME has passed (no penalty)
+        skip(LOCK_PERIOD);
+        vm.prank(JANE);
+        strongHands.withdraw();
+        // ! Checks Jane
+        (uint256 balanceJane, uint256 timestampJane, uint256 lastDividendPointsJane) = strongHands.users(JANE);
+        assertEq(JANE.balance, 109 ether);
+        assertEq(balanceJane, 0 ether); // withdrew
+        assertEq(timestampJane, block.timestamp - LOCK_PERIOD);
+        assertEq(lastDividendPointsJane, 2.5 ether); // 1 + 1.5 from Mia
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 6 ether); // Alice + Bob + Mark
+        assertEq(strongHands.unclaimedDividends(), 15 ether); // 6 + 9 from Mia
+        assertEq(strongHands.totalDividendPoints(), 2.5 ether); // 1 + 1.5 from Mia
     }
 }

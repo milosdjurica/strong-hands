@@ -15,6 +15,7 @@ contract SetupTestsTest is Test {
     address CHARLIE = makeAddr("CHARLIE");
     address MARK = makeAddr("MARK");
     address JANE = makeAddr("JANE");
+    address MIA = makeAddr("MIA");
 
     event Deposited(address indexed sender, uint256 indexed amount, uint256 indexed timestamp);
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
@@ -27,6 +28,7 @@ contract SetupTestsTest is Test {
         vm.deal(CHARLIE, 100 ether);
         vm.deal(MARK, 100 ether);
         vm.deal(JANE, 100 ether);
+        vm.deal(MIA, 100 ether);
 
         LOCK_PERIOD = deployScript.LOCK_PERIOD();
     }

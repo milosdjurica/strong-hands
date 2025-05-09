@@ -11,7 +11,6 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Errors 	  //
     ////////////////////
-    // error StrongHands__NotOwner(address msgSender, address owner);
     error StrongHands__ZeroDeposit();
     error StrongHands__ZeroAmount();
 
@@ -151,10 +150,10 @@ contract StrongHands is Ownable {
         if (owing > 0) {
             unclaimedDividends -= owing;
             user.balance += owing;
-            user.lastDividendPoints = totalDividendPoints;
-            // ! IMPORTANT CHANGE !!!!!!!!!!!!!! Solution for distributing properly rewards
             totalStaked += owing;
         }
+        // This is updated every time, because we want to update user when he enters first time too
+        user.lastDividendPoints = totalDividendPoints;
     }
 
     ////////////////////
