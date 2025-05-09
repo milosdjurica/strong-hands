@@ -22,7 +22,6 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Events 	  //
     ////////////////////
-
     /// @notice Emitted when a user deposits/stakes ETH.
     /// @param user The address of the depositor.
     /// @param amount The amount of ETH deposited.
@@ -66,21 +65,23 @@ contract StrongHands is Ownable {
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
     /// @notice Aave V3 lending pool contract.
     IPool public immutable i_pool;
+    /// @notice aEthWETH token contract representing deposited ETH + yield.
     IERC20 public immutable i_aEthWeth;
 
     ////////////////////
     // * State        //
     ////////////////////
-    // sum of all user.amount
+    /// @notice Total amount of ETH (in wei) currently deposited and claimed rewards by all users in this contract.
+    /// @notice Unclaimed rewards/dividends are not included in this total.
+    /// @dev Sum of all user amounts `user.amount`
     uint256 public totalStaked;
-    // mapping of all users in the system
-    mapping(address => UserInfo) public users;
-    uint256 public totalDividendPoints;
-    uint256 public unclaimedDividends;
 
-    ////////////////////
-    // * Modifiers 	  //
-    ////////////////////
+    ///@notice Mapping of user addresses to their staking information.
+    mapping(address => UserInfo) public users;
+    /// @notice Cumulative dividend points used to track penalty distributions.
+    uint256 public totalDividendPoints;
+    /// @notice Sum of all penalties collected but not yet claimed by users.
+    uint256 public unclaimedDividends;
 
     ////////////////////
     // * Constructor  //
