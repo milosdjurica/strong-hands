@@ -16,7 +16,7 @@ contract ForkTest is SetupTestsTest {
             assertEq(strongHands.owner(), msg.sender);
             assertEq(address(strongHands.i_wrappedTokenGatewayV3()), address(deployScript.WRAPPED_TOKEN_GATEWAY_V3()));
             assertEq(address(strongHands.i_pool()), address(deployScript.POOL()));
-            assertEq(address(strongHands.i_WETH()), address(deployScript.WETH()));
+            // assertEq(address(strongHands.i_WETH()), address(deployScript.WETH()));
             assertEq(address(strongHands.i_aEthWeth()), address(deployScript.A_WETH()));
         } else {
             assertEq(strongHands.i_lockPeriod(), LOCK_PERIOD);
@@ -25,7 +25,7 @@ contract ForkTest is SetupTestsTest {
                 address(strongHands.i_wrappedTokenGatewayV3()), address(deployScript.WRAPPED_TOKEN_GATEWAY_V3_MAINNET())
             );
             assertEq(address(strongHands.i_pool()), address(deployScript.POOL_MAINNET()));
-            assertEq(address(strongHands.i_WETH()), address(deployScript.WETH_MAINNET()));
+            // assertEq(address(strongHands.i_WETH()), address(deployScript.WETH_MAINNET()));
             assertEq(address(strongHands.i_aEthWeth()), address(deployScript.A_WETH_MAINNET()));
         }
     }

@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import {IWrappedTokenGatewayV3} from "@aave/v3-origin/contracts/helpers/interfaces/IWrappedTokenGatewayV3.sol";
 import {Ownable} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contracts/Ownable.sol";
 import {IPool} from "@aave/v3-origin/contracts/interfaces/IPool.sol";
-import {IWETH} from "@aave/v3-origin/contracts/helpers/interfaces/IWETH.sol";
 import {IERC20} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contracts/IERC20.sol";
 
 contract StrongHands is Ownable {
@@ -55,10 +54,6 @@ contract StrongHands is Ownable {
     /// @notice Precision multiplier for dividend point calculations.
     /// @dev Used to avoid loss of precision when distributing penalties as dividends.
     uint256 public constant POINT_MULTIPLIER = 1e18;
-    /// @notice Initial penalty percentage (50%) applied immediately upon early withdrawal.
-    /// @dev Linearly decreases over the lock period down to 0%.
-    // TODO -> not using this constant, should remove it
-    uint256 public constant PENALTY_START_PERCENT = 50;
 
     ////////////////////
     // * Immutables	  //
@@ -71,8 +66,6 @@ contract StrongHands is Ownable {
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
     /// @notice Aave V3 lending pool contract.
     IPool public immutable i_pool;
-    // TODO -> probably won't even need i_WETH
-    IWETH public immutable i_WETH;
     IERC20 public immutable i_aEthWeth;
 
     ////////////////////
@@ -92,17 +85,10 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Constructor  //
     ////////////////////
-    constructor(
-        uint256 _lockPeriod,
-        IWrappedTokenGatewayV3 _wrappedTokenGatewayV3,
-        IPool _pool,
-        IWETH _weth,
-        IERC20 _aEthWeth
-    ) {
+    constructor(uint256 _lockPeriod, IWrappedTokenGatewayV3 _wrappedTokenGatewayV3, IPool _pool, IERC20 _aEthWeth) {
         i_lockPeriod = _lockPeriod;
         i_wrappedTokenGatewayV3 = _wrappedTokenGatewayV3;
         i_pool = _pool;
-        i_WETH = _weth;
         i_aEthWeth = _aEthWeth;
     }
 
