@@ -13,7 +13,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
 
     /////////////////////////
     // * Deposit Tests     //
-    ////////////////////////
+    /////////////////////////
     function test_deposit_RevertIf_DepositIsZero() public {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroDeposit.selector));
         strongHands.deposit();
@@ -61,7 +61,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
 
     /////////////////////////
     // * Deposit Tests     //
-    ////////////////////////
+    /////////////////////////
     function test_withdraw_RevertIf_ZeroAmount() public {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
         strongHands.withdraw();
@@ -122,7 +122,9 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 0 ether);
     }
 
-    // ! INTEGRATION TESTS
+    /////////////////////////
+    // * Integration Test  //
+    /////////////////////////
     function test_deposit_AfterWithdrewPayingMaxPenalty()
         public
         depositWith(ALICE, 1 ether)
@@ -189,15 +191,4 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 0 ether);
         assertEq(strongHands.totalDividendPoints(), 0.25 ether);
     }
-
-    // TODO -> Tests with multiple deposits, multiple withdraws, combinations, same user deposits many times, test transfer fails, etc...
-
-    // function test_gas() public {
-    //     uint256 start = gasleft();
-    //     vm.prank(ALICE);
-    //     strongHands.deposit{value: 1 ether}();
-    //     uint256 spent = start - gasleft();
-
-    //     console.log(spent);
-    // }
 }

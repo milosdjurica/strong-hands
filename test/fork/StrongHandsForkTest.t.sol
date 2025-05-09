@@ -198,7 +198,7 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.totalStaked(), 0);
     }
 
-    // TODO -> Alice, Bob, Charlie and Mark test. Second question from email
+    // ! -> Alice, Bob, Charlie and Mark test. Second question from email
     function testFork_Alice_Bob_Active_Charlie_MidPenalty_Mark_MidPenalty()
         public
         skipWhenNotForking
@@ -302,7 +302,7 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 1.25 ether);
     }
 
-    // TODO -> Alice, Bob, Charlie, Mark and Jane test. First question from email.
+    // ! -> Alice, Bob, Charlie, Mark and Jane test. First question from email.
     function testFork_Alice_Bob_Active_Charlie_MidPenalty_JaneEnters_TakesHalfOfNextPenalty()
         public
         skipWhenNotForking
@@ -344,8 +344,8 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 15 ether); // 6 + 9 from Mia
         assertEq(strongHands.totalDividendPoints(), 2.5 ether); // 1 + 1.5 from Mia
     }
-    // TODO -> Alice, Bob, Charlie, Mark and Jane test. First question from email.
 
+    // ! -> Alice, Bob, Charlie, Mark and Jane test. First question from email.
     function testFork_Alice_Bob_Active_Charlie_MidPenalty_JaneEnters_TakesThirdOfNextPenalty()
         public
         skipWhenNotForking
