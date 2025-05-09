@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import {SetupTestsTest} from "../SetupTests.sol";
 import {StrongHands} from "../../src/StrongHands.sol";
+import {console} from "forge-std/Test.sol";
 
 contract StrongHandsUnitTest is SetupTestsTest {
     function test_constructor() public view {
@@ -190,4 +191,13 @@ contract StrongHandsUnitTest is SetupTestsTest {
     }
 
     // TODO -> Tests with multiple deposits, multiple withdraws, combinations, same user deposits many times, test transfer fails, etc...
+
+    // function test_gas() public {
+    //     uint256 start = gasleft();
+    //     vm.prank(ALICE);
+    //     strongHands.deposit{value: 1 ether}();
+    //     uint256 spent = start - gasleft();
+
+    //     console.log(spent);
+    // }
 }

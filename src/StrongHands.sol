@@ -147,7 +147,7 @@ contract StrongHands is Ownable {
     // PUBLIC !!!
     function claimRewards() public {
         UserInfo storage user = users[msg.sender];
-        uint256 owing = _dividendsOwing(msg.sender);
+        uint256 owing = _dividendsOwing(user);
         if (owing > 0) {
             unclaimedDividends -= owing;
             user.balance += owing;
@@ -185,9 +185,9 @@ contract StrongHands is Ownable {
         return (users[user].balance * timeLeft) / (i_lockPeriod * 2);
     }
 
-    function _dividendsOwing(address user) internal view returns (uint256) {
+    function _dividendsOwing(UserInfo memory user) internal view returns (uint256) {
         // how many new points since this user last claimed
-        uint256 newDividendPoints = totalDividendPoints - users[user].lastDividendPoints;
-        return (users[user].balance * newDividendPoints) / POINT_MULTIPLIER;
+        uint256 newDividendPoints = totalDividendPoints - user.lastDividendPoints;
+        return (user.balance * newDividendPoints) / POINT_MULTIPLIER;
     }
 }
