@@ -23,9 +23,9 @@ contract SetupTestsTest is Test {
     }
 
     // Helper modifier
-    modifier depositWithBob() {
-        vm.prank(BOB);
-        strongHands.deposit{value: 1 ether}();
+    modifier depositWith(address user, uint256 amount) {
+        vm.prank(user);
+        strongHands.deposit{value: amount}();
         _;
     }
 

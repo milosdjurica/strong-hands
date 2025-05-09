@@ -22,7 +22,7 @@ contract StrongHandsFuzzTest is SetupTestsTest {
     }
 
     // ! Withdraw tests
-    function testFuzz_withdraw_RandomFee(uint256 timePassed) public depositWithBob {
+    function testFuzz_withdraw_RandomFee(uint256 timePassed) public depositWith(BOB, 1 ether) {
         timePassed = bound(timePassed, 0, deployScript.LOCK_PERIOD());
         skip(timePassed);
         uint256 timeLeft = deployScript.LOCK_PERIOD() - timePassed;

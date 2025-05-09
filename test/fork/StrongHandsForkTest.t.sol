@@ -60,7 +60,7 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
     }
 
-    function testFork_withdraw_ZeroFee() public skipWhenNotForking depositWithBob {
+    function testFork_withdraw_ZeroFee() public skipWhenNotForking depositWith(BOB, 1 ether) {
         assertEq(BOB.balance, 99 ether);
 
         skip(deployScript.LOCK_PERIOD());
@@ -87,7 +87,7 @@ contract ForkTest is SetupTestsTest {
         // assertGt(balanceAfter, balanceBefore);
     }
 
-    function testFork_withdraw_MaxFee() public skipWhenNotForking depositWithBob {
+    function testFork_withdraw_MaxFee() public skipWhenNotForking depositWith(BOB, 1 ether) {
         // Bob deposited and instantly withdraws
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
@@ -109,14 +109,15 @@ contract ForkTest is SetupTestsTest {
         assertGt(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 0.5 ether);
     }
 
-    // Note -> This test will work properly only if LOCK_PERIOD % 2 == 0
-    function testFork_withdraw_MidFee() public skipWhenNotForking depositWithBob {
+    // ! Note -> This test will work properly only if LOCK_PERIOD % 2 == 0
+    function testFork_withdraw_MidFee() public skipWhenNotForking depositWith(BOB, 1 ether) {
         skip(deployScript.LOCK_PERIOD() / 2);
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
         emit Withdrawn(BOB, 0.75 ether, 0.25 ether, block.timestamp);
         strongHands.withdraw();
 
+        // ! Checks
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - deployScript.LOCK_PERIOD() / 2);
@@ -138,7 +139,7 @@ contract ForkTest is SetupTestsTest {
     // Alice enters with 1 eth
     // Alice gets out immediately and pays 0.5 eth penalty
     // Bob withdraw without penalty and collects reward from Alice's penalty
-    function testFork_totalSupplyCheck() public skipWhenNotForking depositWithBob {
+    function testFork_totalSupplyCheck() public skipWhenNotForking depositWith(BOB, 1 ether) {
         skip(deployScript.LOCK_PERIOD());
         // ! ALICE ENTERS AND WITHDRAWS INSTANTLY
         vm.prank(ALICE);
