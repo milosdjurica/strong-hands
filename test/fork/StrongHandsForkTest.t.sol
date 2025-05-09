@@ -365,6 +365,17 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 6 ether);
         assertEq(strongHands.totalDividendPoints(), 1 ether);
 
+        vm.prank(ALICE);
+        strongHands.claimRewards();
+        vm.prank(BOB);
+        strongHands.claimRewards();
+        vm.prank(MARK);
+        strongHands.claimRewards();
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 18 ether);
+        assertEq(strongHands.unclaimedDividends(), 0 ether);
+        assertEq(strongHands.totalDividendPoints(), 1 ether);
+
         // ! Mia deposits and withdraws immediately -> Pays penalty 50% == 18 ether
         vm.startPrank(MIA);
         strongHands.deposit{value: 36 ether}();
@@ -377,15 +388,15 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
         // ! Checks Jane
         (uint256 balanceJane, uint256 timestampJane, uint256 lastDividendPointsJane) = strongHands.users(JANE);
-        assertEq(JANE.balance, 109 ether);
+        assertEq(JANE.balance, 106 ether);
         assertEq(balanceJane, 0 ether); // withdrew
         assertEq(timestampJane, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsJane, 2.5 ether); // 1 + 1.5 from Mia
+        assertEq(lastDividendPointsJane, 2 ether); // 1 before + 1 from Mia
 
         // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 6 ether); // Alice + Bob + Mark
-        assertEq(strongHands.unclaimedDividends(), 15 ether); // 6 + 9 from Mia
-        assertEq(strongHands.totalDividendPoints(), 2.5 ether); // 1 + 1.5 from Mia
+        assertEq(strongHands.totalStaked(), 12 ether); // Alice + Bob + Mark
+        assertEq(strongHands.unclaimedDividends(), 12 ether); // 18 from Mia - 6 that Jane claimed
+        assertEq(strongHands.totalDividendPoints(), 2 ether); // 1 before + 1 from Mia
     }
 
     // ! INTERNAL/HELPER FUNCTION
