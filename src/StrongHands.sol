@@ -33,8 +33,8 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Constants	  //
     ////////////////////
-    uint256 constant POINT_MULTIPLIER = 1e18;
-    uint256 constant PENALTY_START_PERCENT = 50;
+    uint256 public constant POINT_MULTIPLIER = 1e18;
+    uint256 public constant PENALTY_START_PERCENT = 50;
 
     ////////////////////
     // * Immutables	  //
@@ -59,6 +59,18 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Modifiers 	  //
     ////////////////////
+    modifier claimDividends() {
+        UserInfo storage user = users[msg.sender];
+        uint256 owing = _dividendsOwing(msg.sender);
+        if (owing > 0) {
+            unclaimedDividends -= owing;
+            user.balance += owing;
+            user.lastDividendPoints = totalDividendPoints;
+            // ! IMPORTANT CHANGE !!!!!!!!!!!!!! Solution for distributing properly rewards
+            totalStaked += owing;
+        }
+        _;
+    }
 
     ////////////////////
     // * Constructor  //
@@ -82,10 +94,8 @@ contract StrongHands is Ownable {
     ////////////////////
     // can deposit multiple times
     // depositing starts new lock period counting for user
-    function deposit() external payable {
+    function deposit() external payable claimDividends {
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
-
-        _claimDividends();
 
         UserInfo storage user = users[msg.sender];
         user.balance += msg.value;
@@ -100,17 +110,16 @@ contract StrongHands is Ownable {
 
     // must withdraw all, can not withdraw partially
     // penalty goes from 50% at start to the 0% at the end of lock period
-    function withdraw() external {
+    function withdraw() external claimDividends {
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
-        _claimDividends();
-
         uint256 penalty = calculatePenalty(msg.sender);
 
         user.balance = 0;
-        // TODO -> change this to -=payout
+        uint256 payout = initialAmount - penalty;
+        // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
         totalStaked -= initialAmount;
 
         // totalStaked > 0 bcz cant divide by 0
@@ -124,10 +133,7 @@ contract StrongHands is Ownable {
 
         // TODO -> check reentrancy
 
-        // transfer
-        uint256 payout = initialAmount - penalty;
-
-        // approving aEthWeth transfer before withdrawing
+        // !  approving aEthWeth transfer before withdrawing
         i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), payout);
         i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), payout, msg.sender);
 
@@ -140,6 +146,7 @@ contract StrongHands is Ownable {
     // ONLY OWNER can call this function. He can call it at any moment
     function claimInterest() external onlyOwner {
         // TODO -> finish this function !!!
+        // TODO -> Important to note that user will never be able to pull out unclaimed dividends. Even if first used gets in and goes out and gets punished and there is no one to collect the prize, user also wont be able to do it. This amount would stay forever to keep acquiring the interest
     }
 
     ////////////////////
@@ -149,16 +156,6 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Internal 	  //
     ////////////////////
-    function _claimDividends() internal {
-        UserInfo storage user = users[msg.sender];
-        uint256 owing = _dividendsOwing(msg.sender);
-        if (owing > 0) {
-            unclaimedDividends -= owing;
-            user.balance += owing;
-        }
-        user.lastDividendPoints = totalDividendPoints;
-    }
-
     ////////////////////
     // * Private 	  //
     ////////////////////
