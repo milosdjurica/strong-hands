@@ -39,6 +39,4 @@ contract SetupTestsTest is Test {
         strongHands.deposit{value: amount}();
         _;
     }
-
-    // TODO -> Tests with multiple deposits, multiple withdraws, combinations, same user deposits many times, test transfer fails, etc...
 }
