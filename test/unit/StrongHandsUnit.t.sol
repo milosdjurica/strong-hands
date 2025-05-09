@@ -6,7 +6,7 @@ import {StrongHands} from "../../src/StrongHands.sol";
 
 contract StrongHandsUnitTest is SetupTestsTest {
     function test_constructor() public view {
-        assertEq(strongHands.i_lockPeriod(), deployScript.LOCK_PERIOD());
+        assertEq(strongHands.i_lockPeriod(), LOCK_PERIOD);
         assertEq(strongHands.owner(), msg.sender);
     }
 
@@ -36,7 +36,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
     }
 
     function test_withdraw_ZeroPenalty() public depositWith(BOB, 1 ether) {
-        skip(deployScript.LOCK_PERIOD());
+        skip(LOCK_PERIOD);
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
         emit Withdrawn(BOB, 1 ether, 0, block.timestamp);
@@ -63,7 +63,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
 
     // ! Note -> This test will work only if LOCK_PERIOD % 2 == 0
     function test_withdraw_MidPenalty() public depositWith(BOB, 1 ether) {
-        skip(deployScript.LOCK_PERIOD() / 2);
+        skip(LOCK_PERIOD / 2);
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
         emit Withdrawn(BOB, 0.75 ether, 0.25 ether, block.timestamp);

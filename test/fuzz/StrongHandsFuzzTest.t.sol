@@ -25,11 +25,11 @@ contract StrongHandsFuzzTest is SetupTestsTest {
 
     // ! Withdraw tests
     function testFuzz_withdraw_RandomPenalty(uint256 timePassed) public depositWith(BOB, 1 ether) {
-        timePassed = bound(timePassed, 0, deployScript.LOCK_PERIOD());
+        timePassed = bound(timePassed, 0, LOCK_PERIOD);
         skip(timePassed);
-        uint256 timeLeft = deployScript.LOCK_PERIOD() - timePassed;
+        uint256 timeLeft = LOCK_PERIOD - timePassed;
 
-        uint256 expectedPenalty = 1 ether * timeLeft / deployScript.LOCK_PERIOD() * 50 / 100;
+        uint256 expectedPenalty = 1 ether * timeLeft / LOCK_PERIOD * 50 / 100;
         uint256 expectedPayout = 1 ether - expectedPenalty;
 
         vm.prank(BOB);

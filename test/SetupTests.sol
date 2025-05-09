@@ -8,6 +8,7 @@ import {StrongHandsDeploy} from "../script/StrongHandsDeploy.s.sol";
 contract SetupTestsTest is Test {
     StrongHands public strongHands;
     StrongHandsDeploy public deployScript;
+    uint256 LOCK_PERIOD;
 
     address BOB = makeAddr("BOB");
     address ALICE = makeAddr("ALICE");
@@ -26,6 +27,8 @@ contract SetupTestsTest is Test {
         vm.deal(CHARLIE, 100 ether);
         vm.deal(MARK, 100 ether);
         vm.deal(JANE, 100 ether);
+
+        LOCK_PERIOD = deployScript.LOCK_PERIOD();
     }
 
     // Helper modifier
