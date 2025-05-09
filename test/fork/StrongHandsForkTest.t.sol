@@ -2,11 +2,14 @@
 pragma solidity ^0.8.12;
 
 import {Test, console} from "forge-std/Test.sol";
-import {StrongHands} from "../../src/StrongHands.sol";
+import {StrongHands, Ownable} from "../../src/StrongHands.sol";
 import {StrongHandsDeploy} from "../../script/StrongHandsDeploy.s.sol";
 import {SetupTestsTest} from "../SetupTests.sol";
 
 contract ForkTest is SetupTestsTest {
+    ////////////////////////////////
+    // * constructor() test       //
+    ////////////////////////////////
     function testFork_constructor() public view skipWhenNotForking {
         if (block.chainid == 11155111) {
             assertEq(strongHands.i_lockPeriod(), LOCK_PERIOD);
@@ -27,7 +30,9 @@ contract ForkTest is SetupTestsTest {
         }
     }
 
-    // ! Deposit tests
+    ////////////////////////////////
+    // * deposit() tests          //
+    ////////////////////////////////
     function testFork_deposit_RevertIf_DepositIsZero() public skipWhenNotForking {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroDeposit.selector));
         strongHands.deposit();
@@ -54,7 +59,9 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 1 ether);
     }
 
-    // ! Withdraw tests
+    ////////////////////////////////
+    // * withdraw() tests         //
+    ////////////////////////////////
     function testFork_withdraw_RevertIf_ZeroAmount() public skipWhenNotForking {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
         strongHands.withdraw();
@@ -80,11 +87,11 @@ contract ForkTest is SetupTestsTest {
         // owner still has aEthWeth acquired from the BOB deposit
         assertGt(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 0);
 
-        // TODO -> check if owner can pull those tokens later, check if can pull something before too (if owner can choose how much he wants out)
-        // uint256 balanceBefore = msg.sender.balance;
-        // strongHands.claimInterest();
-        // uint256 balanceAfter = msg.sender.balance;
-        // assertGt(balanceAfter, balanceBefore);
+        uint256 balanceBefore = msg.sender.balance;
+        vm.prank(msg.sender);
+        strongHands.claimYield(10);
+        uint256 balanceAfter = msg.sender.balance;
+        assertEq(balanceAfter - 10, balanceBefore);
     }
 
     function testFork_withdraw_MaxPenalty() public skipWhenNotForking depositWith(BOB, 1 ether) {
@@ -111,7 +118,7 @@ contract ForkTest is SetupTestsTest {
         assertEq(lastDividendPoints, 0);
 
         skip(1111);
-        // StrongHands contracts keeps acquiring interest on aEthWeth until it is pulled out
+        // StrongHands contracts keeps acquiring yield on aEthWeth until it is pulled out
         assertGt(strongHands.i_aEthWeth().balanceOf(address(strongHands)), aEthWethBeforeSkip);
     }
 
@@ -138,21 +145,53 @@ contract ForkTest is SetupTestsTest {
         assertGt(aEthWethBalanceBeforeSkip, 0.25 ether);
 
         skip(1111);
-        // StrongHands contracts keeps acquiring interest on aEthWeth until it is pulled out
+        // StrongHands contracts keeps acquiring yield on aEthWeth until it is pulled out
         uint256 aEthWethBalanceAfterTimePassed = strongHands.i_aEthWeth().balanceOf(address(strongHands));
         assertGt(aEthWethBalanceAfterTimePassed, aEthWethBalanceBeforeSkip);
+    }
+
+    ////////////////////////////////
+    // * collectYield() tests     //
+    ////////////////////////////////
+    function testFork_collectYield_RevertIf_NotOwner() public depositWith(BOB, 1 ether) skipWhenNotForking {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strongHands.claimYield(1);
+    }
+
+    function testFork_collectYield_RevertIf_ZeroAmount() public depositWith(BOB, 1 ether) skipWhenNotForking {
+        vm.prank(msg.sender);
+        vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
+        strongHands.claimYield(0);
+    }
+
+    function testFork_collectYield_RevertIf_NotEnoughYield() public depositWith(BOB, 1 ether) skipWhenNotForking {
+        vm.prank(msg.sender);
+        vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__NotEnoughYield.selector, 1, 0));
+        strongHands.claimYield(1);
+    }
+
+    function testFork_collectYield() public depositWith(BOB, 1 ether) depositWith(ALICE, 1 ether) skipWhenNotForking {
+        uint256 balanceWithYield = strongHands.i_aEthWeth().balanceOf(address(this));
+        skip(LOCK_PERIOD);
+        vm.prank(msg.sender);
+        strongHands.claimYield(1e16);
+        uint256 balanceWithYieldAfter = strongHands.i_aEthWeth().balanceOf(address(this));
+
+        assertEq(balanceWithYieldAfter + 1e16, balanceWithYield);
     }
 
     // Bob enters with 1 eth
     // Alice enters with 1 eth
     // Alice gets out immediately and pays 0.5 eth penalty
     // Bob withdraw without penalty and collects 0.5 reward from Alice's penalty
-    function testFork_totalSupplyCheck() public skipWhenNotForking depositWith(BOB, 1 ether) {
-        skip(LOCK_PERIOD);
-        // ! ALICE ENTERS AND WITHDRAWS INSTANTLY
-        vm.prank(ALICE);
-        strongHands.deposit{value: 1 ether}();
+    function testFork_BobCollectsRewardFromAlice()
+        public
+        skipWhenNotForking
+        depositWith(BOB, 1 ether)
+        depositWith(ALICE, 1 ether)
+    {
         assertEq(strongHands.totalStaked(), 2 ether);
+        // ! ALICE WITHDRAWS INSTANTLY
         vm.prank(ALICE);
         strongHands.withdraw();
 
@@ -166,7 +205,7 @@ contract ForkTest is SetupTestsTest {
         // ! Checks Bob
         (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
         assertEq(balanceBob, 1 ether); // not updated because Bob needs to withdraw or deposit to get updated
-        assertEq(timestampBob, block.timestamp - LOCK_PERIOD);
+        assertEq(timestampBob, block.timestamp);
         assertEq(lastDividendPointsBob, 0); // not updated because Bob needs to withdraw or deposit to get updated
         assertEq(strongHands.totalStaked(), 1 ether);
 
@@ -180,7 +219,7 @@ contract ForkTest is SetupTestsTest {
 
         // ! Checks to see if aEthWeth balance is growing
         skip(LOCK_PERIOD);
-        // StrongHands contracts keeps acquiring interest on aEthWeth until it is pulled out
+        // StrongHands contracts keeps acquiring yield on aEthWeth until it is pulled out
         uint256 aEthWethBalanceAfterTimePassed = strongHands.i_aEthWeth().balanceOf(address(strongHands));
         assertGt(aEthWethBalanceAfterTimePassed, aEthWethBalance);
 
@@ -193,7 +232,7 @@ contract ForkTest is SetupTestsTest {
         = strongHands.users(BOB);
         assertEq(BOB.balance, 100.5 ether);
         assertEq(balanceBobAfterWithdraw, 0);
-        assertEq(timestampBobAfterWithdraw, block.timestamp - 2 * LOCK_PERIOD);
+        assertEq(timestampBobAfterWithdraw, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsBobAfterWithdraw, 0.5e18);
         assertEq(strongHands.totalStaked(), 0);
     }

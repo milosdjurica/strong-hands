@@ -13,10 +13,12 @@ contract StrongHands is Ownable {
     ////////////////////
     error StrongHands__ZeroDeposit();
     error StrongHands__ZeroAmount();
+    error StrongHands__NotEnoughYield(uint256 desiredAmount, uint256 actualYield);
 
     ////////////////////
     // * Events 	  //
     ////////////////////
+
     event Deposited(address indexed user, uint256 indexed amount, uint256 indexed timestamp);
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
 
@@ -135,9 +137,17 @@ contract StrongHands is Ownable {
     // * Only Owner   //
     ////////////////////
     // ONLY OWNER can call this function. He can call it at any moment
-    function claimInterest() external onlyOwner {
-        // TODO -> finish this function !!!
-        // TODO -> Important to note that user will never be able to pull out unclaimed dividends. Even if first used gets in and goes out and gets punished and there is no one to collect the prize, user also wont be able to do it. This amount would stay forever to keep acquiring the interest
+    // could be changed to always withdraw full yield and user has no option to choose
+    function claimYield(uint256 amount) external onlyOwner {
+        if (amount == 0) revert StrongHands__ZeroAmount();
+        uint256 balanceWithYield = i_aEthWeth.balanceOf(address(this));
+        uint256 yield = balanceWithYield - totalStaked - unclaimedDividends;
+
+        // This could be changed to give back full yield if amount is > yield
+        if (amount > yield) revert StrongHands__NotEnoughYield(amount, yield);
+
+        i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), amount);
+        i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), amount, msg.sender);
     }
 
     ////////////////////

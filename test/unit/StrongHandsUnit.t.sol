@@ -125,6 +125,26 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 0 ether);
     }
 
+    ////////////////////////////////
+    // * collectYield() tests     //
+    ////////////////////////////////
+    function testFork_collectYield_RevertIf_NotOwner() public depositWith(BOB, 1 ether) {
+        vm.expectRevert("Ownable: caller is not the owner");
+        strongHands.claimYield(1);
+    }
+
+    function testFork_collectYield_RevertIf_ZeroAmount() public depositWith(BOB, 1 ether) {
+        vm.prank(msg.sender);
+        vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
+        strongHands.claimYield(0);
+    }
+
+    function testFork_collectYield_RevertIf_NotEnoughYield() public depositWith(BOB, 1 ether) {
+        vm.prank(msg.sender);
+        vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__NotEnoughYield.selector, 1, 0));
+        strongHands.claimYield(1);
+    }
+
     ////////////////////////////
     // * claimRewards() Tests //
     ////////////////////////////
