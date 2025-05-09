@@ -42,6 +42,7 @@ contract StrongHands is Ownable {
     uint256 public immutable i_lockPeriod;
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
     IPool public immutable i_pool;
+    // TODO -> probably won't even need i_WETH
     IWETH public immutable i_WETH;
     IERC20 public immutable i_aEthWeth;
 
