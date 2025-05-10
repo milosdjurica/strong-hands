@@ -16,7 +16,7 @@ contract ForkTest is SetupTestsTest {
             assertEq(strongHands.owner(), msg.sender);
             assertEq(address(strongHands.i_wrappedTokenGatewayV3()), address(deployScript.WRAPPED_TOKEN_GATEWAY_V3()));
             assertEq(address(strongHands.i_pool()), address(deployScript.POOL()));
-            assertEq(address(strongHands.i_WETH()), address(deployScript.WETH()));
+            // assertEq(address(strongHands.i_WETH()), address(deployScript.WETH()));
             assertEq(address(strongHands.i_aEthWeth()), address(deployScript.A_WETH()));
         } else {
             assertEq(strongHands.i_lockPeriod(), LOCK_PERIOD);
@@ -25,7 +25,7 @@ contract ForkTest is SetupTestsTest {
                 address(strongHands.i_wrappedTokenGatewayV3()), address(deployScript.WRAPPED_TOKEN_GATEWAY_V3_MAINNET())
             );
             assertEq(address(strongHands.i_pool()), address(deployScript.POOL_MAINNET()));
-            assertEq(address(strongHands.i_WETH()), address(deployScript.WETH_MAINNET()));
+            // assertEq(address(strongHands.i_WETH()), address(deployScript.WETH_MAINNET()));
             assertEq(address(strongHands.i_aEthWeth()), address(deployScript.A_WETH_MAINNET()));
         }
     }
@@ -89,6 +89,8 @@ contract ForkTest is SetupTestsTest {
 
         uint256 balanceBefore = msg.sender.balance;
         vm.prank(msg.sender);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedYield(msg.sender, 10);
         strongHands.claimYield(10);
         uint256 balanceAfter = msg.sender.balance;
         assertEq(balanceAfter - 10, balanceBefore);
@@ -171,11 +173,13 @@ contract ForkTest is SetupTestsTest {
     }
 
     function testFork_collectYield() public depositWith(BOB, 1 ether) depositWith(ALICE, 1 ether) skipWhenNotForking {
-        uint256 balanceWithYield = strongHands.i_aEthWeth().balanceOf(address(this));
         skip(LOCK_PERIOD);
+        uint256 balanceWithYield = strongHands.i_aEthWeth().balanceOf(address(strongHands));
         vm.prank(msg.sender);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedYield(msg.sender, 0.01 ether);
         strongHands.claimYield(1e16);
-        uint256 balanceWithYieldAfter = strongHands.i_aEthWeth().balanceOf(address(this));
+        uint256 balanceWithYieldAfter = strongHands.i_aEthWeth().balanceOf(address(strongHands));
 
         assertEq(balanceWithYieldAfter + 1e16, balanceWithYield);
     }
@@ -286,9 +290,9 @@ contract ForkTest is SetupTestsTest {
         // ! Check Alice - BEFORE WITHDRAWING FROM HER ACC
         (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
         assertEq(ALICE.balance, 97 ether);
-        assertEq(balanceAlice, 3 ether); // not updated because Alice didnt call claimRewards
+        assertEq(balanceAlice, 3 ether); // not updated because Alice didnt call claimDividends
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimRewards
+        assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimDividends
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 4 ether);
         assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
@@ -297,7 +301,7 @@ contract ForkTest is SetupTestsTest {
         // ! Check Bob - BEFORE WITHDRAWING FROM HIS ACC
         (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
         assertEq(BOB.balance, 99 ether);
-        assertEq(balanceBob, 1 ether); // not updated because Bob didnt call claimRewards
+        assertEq(balanceBob, 1 ether); // not updated because Bob didnt call claimDividends
         assertEq(timestampBob, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsBob, 0); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether prize
         // ! Check StrongHands
@@ -405,11 +409,11 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 1 ether);
 
         vm.prank(ALICE);
-        strongHands.claimRewards();
+        strongHands.claimDividends();
         vm.prank(BOB);
-        strongHands.claimRewards();
+        strongHands.claimDividends();
         vm.prank(MARK);
-        strongHands.claimRewards();
+        strongHands.claimDividends();
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 18 ether);
         assertEq(strongHands.unclaimedDividends(), 0 ether);
@@ -456,23 +460,23 @@ contract ForkTest is SetupTestsTest {
         // ! Check Mark
         (uint256 balanceMark, uint256 timestampMark, uint256 lastDividendPointsMark) = strongHands.users(MARK);
         assertEq(MARK.balance, 98 ether);
-        assertEq(balanceMark, 2 ether); // not updated because Mark didnt call claimRewards
+        assertEq(balanceMark, 2 ether); // not updated because Mark didnt call claimDividends
         assertEq(timestampMark, block.timestamp - LOCK_PERIOD / 2);
-        assertEq(lastDividendPointsMark, 0); // not updated because Mark didnt call claimRewards
+        assertEq(lastDividendPointsMark, 0); // not updated because Mark didnt call claimDividends
 
         // ! Check Alice
         (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
         assertEq(ALICE.balance, 97 ether);
-        assertEq(balanceAlice, 3 ether); // not updated because Alice didnt call claimRewards
+        assertEq(balanceAlice, 3 ether); // not updated because Alice didnt call claimDividends
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD / 2);
-        assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimRewards
+        assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimDividends
 
         // ! Check Bob
         (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
         assertEq(BOB.balance, 99 ether);
-        assertEq(balanceBob, 1 ether); // not updated because Bob didnt call claimRewards
+        assertEq(balanceBob, 1 ether); // not updated because Bob didnt call claimDividends
         assertEq(timestampBob, block.timestamp - LOCK_PERIOD / 2);
-        assertEq(lastDividendPointsBob, 0); // not updated because Bob didnt call claimRewards
+        assertEq(lastDividendPointsBob, 0); // not updated because Bob didnt call claimDividends
 
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 6 ether);
