@@ -44,7 +44,7 @@ contract StrongHands is Ownable {
     /// @notice Stores individual user staking info
     /// @param balance The amount of ETH deposited by the user
     /// @param lastDepositTimestamp The timestamp of the user's last deposit
-    /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `claimRewards()` function is called directly
+    /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `claimDividends()` function is called directly
     struct UserInfo {
         uint256 balance;
         uint256 lastDepositTimestamp;
@@ -79,8 +79,8 @@ contract StrongHands is Ownable {
     ////////////////////
     // * State        //
     ////////////////////
-    /// @notice Total amount of ETH (in wei) currently deposited and claimed rewards by all users in this contract.
-    /// @dev Unclaimed rewards/dividends are not included in this total.
+    /// @notice Total amount of ETH (in wei) currently deposited and claimed dividends by all users in this contract.
+    /// @dev Unclaimed dividends are not included in this total.
     /// @dev Sum of all user amounts `user.amount`
     uint256 public totalStaked;
 
@@ -114,14 +114,14 @@ contract StrongHands is Ownable {
     ////////////////////
     /**
      * @notice Updates user info and stakes ETH into the contract, starting or restarting the lock period for user.
-     * Claims any unclaimed rewards that belong to the caller beforehand.
+     * Claims any unclaimed dividends that belong to the caller beforehand.
      * @dev Reverts `StrongHands__ZeroDeposit()` if `msg.value == 0`.
      * @dev Wraps ETH and deposit into the Aave pool via `i_wrappedTokenGatewayV3`.
      * @dev Emits a {Deposited} event.
      */
     function deposit() external payable {
-        claimRewards();
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
+        claimDividends();
 
         UserInfo storage user = users[msg.sender];
         user.balance += msg.value;
@@ -135,7 +135,7 @@ contract StrongHands is Ownable {
     /**
      * @notice Withdraw entire stake. Applies penalty if lock period not passed.
      * The penalty starts at 50% and gradually decreases to 0% as the lock period expires.
-     * Claims any unclaimed rewards that belong to the caller beforehand.
+     * Claims any unclaimed dividends that belong to the caller beforehand.
      * @dev Partial withdrawals are not allowed. Calculates and distributes penalty to remaining stakers.
      * @dev Reverts `StrongHands__ZeroAmount()` if user has nothing to withdraw.
      * @dev Unwraps aEthWETH and sends ETH to the user via `i_wrappedTokenGatewayV3`.
@@ -143,7 +143,7 @@ contract StrongHands is Ownable {
      * @dev Emits a {Withdrawn} event.
      */
     function withdraw() external {
-        claimRewards();
+        claimDividends();
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
@@ -199,9 +199,11 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Public 	  //
     ////////////////////
-    // This function should be callable by users to claim rewards. Also automatically called when deposit/withdraw is called
-    // PUBLIC !!!
-    function claimRewards() public {
+    /**
+     * @notice Claims unclaimed dividends (redistributed penalties) for the caller.
+     * @dev Called automatically on deposit/withdraw.
+     */
+    function claimDividends() public {
         UserInfo storage user = users[msg.sender];
         uint256 owing = _dividendsOwing(user);
         if (owing > 0) {
@@ -211,22 +213,19 @@ contract StrongHands is Ownable {
         }
         // This is updated every time, because we want to update user when he enters first time too
         user.lastDividendPoints = totalDividendPoints;
+        // TODO -> emit event
     }
-
-    ////////////////////
-    // * Internal 	  //
-    ////////////////////
-    ////////////////////
-    // * Private 	  //
-    ////////////////////
 
     ////////////////////
     // * View & Pure  //
     ////////////////////
-
-    // TODO -> Should this be public?
-    // TODO -> Could save some gas by passing user.lastDepositTimestamp and user.balance ?
+    /**
+     * @notice Calculates the current penalty for a user's withdrawal.
+     * @param user The address of the user.
+     * @return The penalty amount to be redistributed to other active users.
+     */
     function calculatePenalty(address user) public view returns (uint256) {
+        // TODO -> Make it internal?
         uint256 unlockTimestamp = users[user].lastDepositTimestamp + i_lockPeriod;
         if (block.timestamp >= unlockTimestamp) return 0;
 
@@ -241,6 +240,11 @@ contract StrongHands is Ownable {
         return (users[user].balance * timeLeft) / (i_lockPeriod * 2);
     }
 
+    /**
+     * @notice Internal helper to calculate pending dividends for a user.
+     * @param user The user's info struct.
+     * @return Amount of dividends owed to the user.
+     */
     function _dividendsOwing(UserInfo memory user) internal view returns (uint256) {
         // how many new points since this user last claimed
         uint256 newDividendPoints = totalDividendPoints - user.lastDividendPoints;

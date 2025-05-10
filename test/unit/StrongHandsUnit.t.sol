@@ -145,12 +145,12 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.claimYield(1);
     }
 
-    ////////////////////////////
-    // * claimRewards() Tests //
-    ////////////////////////////
+    //////////////////////////////
+    // * claimDividends() Tests //
+    //////////////////////////////
     function test_claimRewards_NoUpdate() public depositWith(BOB, 1 ether) {
         vm.prank(BOB);
-        strongHands.claimRewards();
+        strongHands.claimDividends();
 
         // ! Check Bob
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
@@ -170,9 +170,9 @@ contract StrongHandsUnitTest is SetupTestsTest {
         depositWith(BOB, 1 ether)
     {
         vm.startPrank(BOB);
-        strongHands.claimRewards();
+        strongHands.claimDividends();
         strongHands.deposit{value: 1 ether}();
-        strongHands.claimRewards();
+        strongHands.claimDividends();
         vm.stopPrank();
 
         // ! Check Bob
@@ -189,7 +189,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
 
     function test_claimRewards_Update() public depositWith(ALICE, 1 ether) depositWith(BOB, 1 ether) {
         vm.prank(BOB);
-        strongHands.claimRewards();
+        strongHands.claimDividends();
 
         // ! Alice pays 50% -> 0.5 eth
         vm.prank(ALICE);
@@ -197,7 +197,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
 
         vm.startPrank(BOB);
         strongHands.deposit{value: 1 ether}();
-        strongHands.claimRewards();
+        strongHands.claimDividends();
         vm.stopPrank();
 
         // ! Check Bob
@@ -229,7 +229,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         // ! Bob enters
         vm.startPrank(BOB);
         strongHands.deposit{value: 1 ether}();
-        strongHands.claimRewards();
+        strongHands.claimDividends();
         vm.stopPrank();
 
         // ! Check Bob
