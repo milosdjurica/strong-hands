@@ -31,25 +31,27 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(lastDividendPointsAlice, 0);
 
         // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 9 ether); // TODO ->  THIS SHOULD BE 9
+        assertEq(strongHands.totalStaked(), 9 ether);
         assertEq(strongHands.unclaimedDividends(), 3 ether);
-        // assertEq(strongHands.totalDividendPoints(), 0.666 ether); // paid 0.5 fee for every 1 ether that was withdrawn. Alice will get 0.5 for every 1 ether she has. // TODO -> THIS SHOULD BE 0.666... ?
+        assertEq(strongHands.totalDividendPoints(), 1.5e54); // paid 0.5 fee for every 1 ether that was withdrawn. Alice will get 0.5 for every 1 ether she has.
 
+        // ! Alice withdraws after lock period passes. No penalty
         skip(LOCK_PERIOD);
         vm.prank(ALICE);
         strongHands.withdraw();
+
         // ! Check Alice
         (uint256 balanceAliceAfter, uint256 timestampAliceAfter, uint256 lastDividendPointsAliceAfter) =
             strongHands.users(ALICE);
         // assertEq(ALICE.balance, 94 ether);
         assertEq(balanceAliceAfter, 0 ether);
         assertEq(timestampAliceAfter, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsAliceAfter, uint256(2e54) / 3); // 0.66666666666
+        assertEq(lastDividendPointsAliceAfter, 1.5e54); // paid 0.5 fee for every 1 ether that was withdrawn. Alice will get 0.5 for every 1 ether she has.
 
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 0 ether); // TODO ->  THIS SHOULD BE 9
         assertEq(strongHands.unclaimedDividends(), 0);
-        assertEq(lastDividendPointsAliceAfter, uint256(2e54) / 3); // 0.66666666666 // paid 0.5 fee for every 1 ether that was withdrawn. Alice will get 0.5 for every 1 ether she has.
+        assertEq(lastDividendPointsAliceAfter, 1.5e54); // paid 0.5 fee for every 1 ether that was withdrawn. Alice will get 0.5 for every 1 ether she has.
     }
 
     /////////////////////////
@@ -410,7 +412,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 1.25 ether);
         assertEq(strongHands.unclaimedDividends(), 0.25 ether);
-        assertEq(strongHands.totalDividendPoints(), 0.8e54); // 1-> initial amount /0.8 = 1.25 amount with dividends
+        assertEq(strongHands.totalDividendPoints(), 1.25e54); // 1-> initial amount * 1.25 = 1.25 amount with dividends
 
         skip(LOCK_PERIOD);
         // ! Alice withdraws and doesnt pay penalty
@@ -421,11 +423,11 @@ contract StrongHandsUnitTest is SetupTestsTest {
         (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
         assertEq(balanceAlice, 0);
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD - LOCK_PERIOD / 2);
-        assertEq(lastDividendPointsAlice, 0.8e54);
+        assertEq(lastDividendPointsAlice, 1.25e54);
 
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 0 ether);
         assertEq(strongHands.unclaimedDividends(), 0 ether);
-        assertEq(strongHands.totalDividendPoints(), 0.8e54); // 1-> initial amount /0.8 = 1.25 amount with dividends
+        assertEq(strongHands.totalDividendPoints(), 1.25e54); // 1-> initial amount * 1.25 = 1.25 amount with dividends
     }
 }

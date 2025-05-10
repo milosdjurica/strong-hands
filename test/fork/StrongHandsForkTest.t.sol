@@ -408,12 +408,12 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 6 ether);
         assertEq(strongHands.totalDividendPoints(), 1 ether);
 
-        vm.prank(ALICE);
-        strongHands.claimDividends();
-        vm.prank(BOB);
-        strongHands.claimDividends();
-        vm.prank(MARK);
-        strongHands.claimDividends();
+        // vm.prank(ALICE);
+        // strongHands.claimDividends();
+        // vm.prank(BOB);
+        // strongHands.claimDividends();
+        // vm.prank(MARK);
+        // strongHands.claimDividends();
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 18 ether);
         assertEq(strongHands.unclaimedDividends(), 0 ether);

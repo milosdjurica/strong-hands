@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {console} from "forge-std/Test.sol";
-
 import {IWrappedTokenGatewayV3} from "@aave/v3-origin/contracts/helpers/interfaces/IWrappedTokenGatewayV3.sol";
 import {Ownable} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contracts/Ownable.sol";
 import {IPool} from "@aave/v3-origin/contracts/interfaces/IPool.sol";
@@ -35,10 +33,6 @@ contract StrongHands is Ownable {
     /// @param penalty The penalty amount redistributed to other users. Will be 0 if user withdraws after his `i_lockPeriod` has passed.
     /// @param timestamp The timestamp of withdrawal.
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
-    /// @notice Emitted when user claims dividends.
-    /// @param user The address of the caller.
-    /// @param amountClaimed The amount of dividends claimed by user.
-    event ClaimedDividends(address indexed user, uint256 indexed amountClaimed);
     /// @notice Emitted when owner claims yield.
     /// @param owner The address of the owner.
     /// @param amount The amount of yield owner claimed.
@@ -50,7 +44,7 @@ contract StrongHands is Ownable {
     /// @notice Stores individual user staking info
     /// @param balance The amount of ETH deposited by the user
     /// @param lastDepositTimestamp The timestamp of the user's last deposit
-    /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `claimDividends()` function is called directly
+    /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `_claimDividends()` function is called directly
     struct UserInfo {
         uint256 balance;
         uint256 lastDepositTimestamp;
@@ -93,7 +87,7 @@ contract StrongHands is Ownable {
     ///@notice Mapping of user addresses to their staking information.
     mapping(address => UserInfo) public users;
     /// @notice Cumulative dividend points used to track penalty distributions.
-    /// ! IMPORTANT !!! This value is what user.balance is divided with!!! If 0.8 and user balance 1 then user will have 1/0.8 -> 1.25
+    /// ! IMPORTANT !!! This value is what user.balance multiplied with!!! If 1.5 and user balance is 1 then user will have -> 1.5 (1+0.5)
     uint256 public totalDividendPoints;
     /// @notice Sum of all penalties collected but not yet claimed by users.
     uint256 public unclaimedDividends;
@@ -128,7 +122,7 @@ contract StrongHands is Ownable {
      */
     function deposit() external payable {
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
-        claimDividends();
+        _claimDividends();
 
         UserInfo storage user = users[msg.sender];
         user.balance += msg.value;
@@ -150,36 +144,23 @@ contract StrongHands is Ownable {
      * @dev Emits a {Withdrawn} event.
      */
     function withdraw() external {
-        claimDividends();
+        _claimDividends();
         UserInfo storage user = users[msg.sender];
-        // !    9 !!!
-        // 2
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
-        // 0
         uint256 penalty = calculatePenalty(msg.sender);
-        console.log("PENALTY -> ", penalty);
 
         user.balance = 0;
         uint256 payout = initialAmount - penalty;
-        console.log("PAYOUT -> ", payout);
-        // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
-        // 9 - 9 = 0
-        console.log("INITIAL AMOUNT -> ", initialAmount);
-        console.log("TOTAL STAKED IN WITHDRAW BEFORE PAYOUT -> ", totalStaked);
-        // Maybe move this after disburse??? MUST BE BEFORE so withdrawing user doesnt get into equation
         uint256 totalStakedBeforePayout = totalStaked;
         totalStaked -= payout;
-        console.log("TOTAL STAKED AFTER PAYOUT -> ", totalStaked);
 
         // totalStaked > 0 bcz cant divide by 0
         // disburse
         if (penalty > 0 && initialAmount != totalStakedBeforePayout) {
             unclaimedDividends += penalty;
-            // ! Here is the problem. If initialAmount == totalStaked
-            // ! TODO -> Try to reverse this !!! Then it should give instead of 0.6666 -> 1.5
-            totalDividendPoints += (initialAmount * POINT_MULTIPLIER) / totalStaked;
+            totalDividendPoints += (totalStaked * POINT_MULTIPLIER) / initialAmount;
         }
 
         // TODO -> check reentrancy
@@ -198,45 +179,28 @@ contract StrongHands is Ownable {
      * @notice Claims unclaimed dividends (redistributed penalties) for the caller.
      * @dev Called automatically on deposit/withdraw.
      */
-    function claimDividends() public {
-        console.log("NEW CALL START !!!");
+    function _claimDividends() internal {
         UserInfo storage user = users[msg.sender];
-        uint256 owing = _dividendsOwing(user); // WILL BE 3
-        console.log("OWING -> ", owing);
-        console.log("UNCLAIMED DIVIDENDS -> ", unclaimedDividends);
+        uint256 owing = _dividendsOwing(user);
+
         if (owing > 0) {
-            // - 3 (previous paid penalty)
-            // if (owing > unclaimedDividends) owing = unclaimedDividends;
             user.balance += owing;
             unclaimedDividends -= owing;
-            // 6 + 3 = 9
-            // totalStaked += owing;
         }
 
-        // This is updated every time, because we want to update user when he enters first time too
         user.lastDividendPoints = totalDividendPoints;
-        emit ClaimedDividends(msg.sender, owing);
     }
 
     function _dividendsOwing(UserInfo memory user) internal view returns (uint256) {
-        // how many new points since this user last claimed
-        //      0.666             = 0.666               -  0
-        // 0.8e54
-        // 1e54 - 0
         uint256 newDividendPoints = totalDividendPoints - user.lastDividendPoints;
-        // console.log("Alice balance before -> ", user.balance); // 6000000000000000000
-        // console.log("NEW DIVIDEND POINTS -> ", newDividendPoints); // 666666666666666666
         if (newDividendPoints == 0) return 0;
+        // exactly double
         if (newDividendPoints == 1e54) return user.balance;
-        // new user balance = 6 * 0.66 / 1 == 9 !!!
-        // ! THIS IS === 9
-        uint256 newUserBalance = user.balance * POINT_MULTIPLIER / newDividendPoints;
-        console.log("NEW USER BALANCE IN OWING -> ", newUserBalance); // 9000000000000000009
-        // ! 3 = 9 - 6
+        uint256 newUserBalance = user.balance * newDividendPoints / POINT_MULTIPLIER;
+
         uint256 diff = newUserBalance - user.balance;
 
         return diff;
-        // return (diff * newDividendPoints) / POINT_MULTIPLIER;
     }
 
     ////////////////////
