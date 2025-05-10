@@ -48,9 +48,24 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         assertEq(strongHands.totalStaked(), 0);
     }
 
-    // TODO -> Write those 2 tests
-    function testFuzz_ClaimDividends() public {}
-    function testFuzz_ClaimYield() public {}
+    ////////////////////////////////
+    // * claimDividends() tests   //
+    ////////////////////////////////
+    function testFuzz_claimDividends(uint256 aliceAmount) public depositWith(BOB, 1 ether) {
+        aliceAmount = bound(aliceAmount, 1, 100 ether);
+        vm.prank(ALICE);
+        strongHands.deposit{value: aliceAmount}();
+
+        vm.prank(ALICE);
+        strongHands.withdraw();
+
+        skip(LOCK_PERIOD);
+        vm.prank(BOB);
+        strongHands.claimDividends();
+
+        (uint256 balance,,) = strongHands.users(BOB);
+        assertEq(balance, 1 ether + aliceAmount / 2);
+    }
 
     ////////////////////////////////
     // * calculatePenalty() tests //
