@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {console} from "forge-std/Test.sol";
+
 import {IWrappedTokenGatewayV3} from "@aave/v3-origin/contracts/helpers/interfaces/IWrappedTokenGatewayV3.sol";
 import {Ownable} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contracts/Ownable.sol";
 import {IPool} from "@aave/v3-origin/contracts/interfaces/IPool.sol";
@@ -60,7 +62,7 @@ contract StrongHands is Ownable {
     ////////////////////
     /// @notice Precision multiplier for dividend point calculations.
     /// @dev Used to avoid loss of precision when distributing penalties as dividends.
-    uint256 public constant POINT_MULTIPLIER = 1e18;
+    uint256 public constant POINT_MULTIPLIER = 1e54;
 
     ////////////////////
     // * Immutables	  //
@@ -91,6 +93,7 @@ contract StrongHands is Ownable {
     ///@notice Mapping of user addresses to their staking information.
     mapping(address => UserInfo) public users;
     /// @notice Cumulative dividend points used to track penalty distributions.
+    /// ! IMPORTANT !!! This value is what user.balance is divided with!!! If 0.8 and user balance 1 then user will have 1/0.8 -> 1.25
     uint256 public totalDividendPoints;
     /// @notice Sum of all penalties collected but not yet claimed by users.
     uint256 public unclaimedDividends;
@@ -149,22 +152,34 @@ contract StrongHands is Ownable {
     function withdraw() external {
         claimDividends();
         UserInfo storage user = users[msg.sender];
+        // !    9 !!!
+        // 2
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
+        // 0
         uint256 penalty = calculatePenalty(msg.sender);
+        console.log("PENALTY -> ", penalty);
 
         user.balance = 0;
         uint256 payout = initialAmount - penalty;
+        console.log("PAYOUT -> ", payout);
         // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
-        // Maybe move this after disburse???
-        totalStaked -= initialAmount;
+        // 9 - 9 = 0
+        console.log("INITIAL AMOUNT -> ", initialAmount);
+        console.log("TOTAL STAKED IN WITHDRAW BEFORE PAYOUT -> ", totalStaked);
+        // Maybe move this after disburse??? MUST BE BEFORE so withdrawing user doesnt get into equation
+        uint256 totalStakedBeforePayout = totalStaked;
+        totalStaked -= payout;
+        console.log("TOTAL STAKED AFTER PAYOUT -> ", totalStaked);
 
         // totalStaked > 0 bcz cant divide by 0
         // disburse
-        if (penalty > 0 && totalStaked > 0) {
+        if (penalty > 0 && initialAmount != totalStakedBeforePayout) {
             unclaimedDividends += penalty;
-            totalDividendPoints += (penalty * POINT_MULTIPLIER) / totalStaked;
+            // ! Here is the problem. If initialAmount == totalStaked
+            // ! TODO -> Try to reverse this !!! Then it should give instead of 0.6666 -> 1.5
+            totalDividendPoints += (initialAmount * POINT_MULTIPLIER) / totalStaked;
         }
 
         // TODO -> check reentrancy
@@ -174,6 +189,54 @@ contract StrongHands is Ownable {
         i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), payout, msg.sender);
 
         emit Withdrawn(msg.sender, payout, penalty, block.timestamp);
+    }
+
+    ////////////////////
+    // * Public 	  //
+    ////////////////////
+    /**
+     * @notice Claims unclaimed dividends (redistributed penalties) for the caller.
+     * @dev Called automatically on deposit/withdraw.
+     */
+    function claimDividends() public {
+        console.log("NEW CALL START !!!");
+        UserInfo storage user = users[msg.sender];
+        uint256 owing = _dividendsOwing(user); // WILL BE 3
+        console.log("OWING -> ", owing);
+        console.log("UNCLAIMED DIVIDENDS -> ", unclaimedDividends);
+        if (owing > 0) {
+            // - 3 (previous paid penalty)
+            // if (owing > unclaimedDividends) owing = unclaimedDividends;
+            user.balance += owing;
+            unclaimedDividends -= owing;
+            // 6 + 3 = 9
+            // totalStaked += owing;
+        }
+
+        // This is updated every time, because we want to update user when he enters first time too
+        user.lastDividendPoints = totalDividendPoints;
+        emit ClaimedDividends(msg.sender, owing);
+    }
+
+    function _dividendsOwing(UserInfo memory user) internal view returns (uint256) {
+        // how many new points since this user last claimed
+        //      0.666             = 0.666               -  0
+        // 0.8e54
+        // 1e54 - 0
+        uint256 newDividendPoints = totalDividendPoints - user.lastDividendPoints;
+        // console.log("Alice balance before -> ", user.balance); // 6000000000000000000
+        // console.log("NEW DIVIDEND POINTS -> ", newDividendPoints); // 666666666666666666
+        if (newDividendPoints == 0) return 0;
+        if (newDividendPoints == 1e54) return user.balance;
+        // new user balance = 6 * 0.66 / 1 == 9 !!!
+        // ! THIS IS === 9
+        uint256 newUserBalance = user.balance * POINT_MULTIPLIER / newDividendPoints;
+        console.log("NEW USER BALANCE IN OWING -> ", newUserBalance); // 9000000000000000009
+        // ! 3 = 9 - 6
+        uint256 diff = newUserBalance - user.balance;
+
+        return diff;
+        // return (diff * newDividendPoints) / POINT_MULTIPLIER;
     }
 
     ////////////////////
@@ -199,30 +262,10 @@ contract StrongHands is Ownable {
 
         emit ClaimedYield(msg.sender, amount);
     }
-
-    ////////////////////
-    // * Public 	  //
-    ////////////////////
-    /**
-     * @notice Claims unclaimed dividends (redistributed penalties) for the caller.
-     * @dev Called automatically on deposit/withdraw.
-     */
-    function claimDividends() public {
-        UserInfo storage user = users[msg.sender];
-        uint256 owing = _dividendsOwing(user);
-        if (owing > 0) {
-            unclaimedDividends -= owing;
-            user.balance += owing;
-            totalStaked += owing;
-        }
-        // This is updated every time, because we want to update user when he enters first time too
-        user.lastDividendPoints = totalDividendPoints;
-        emit ClaimedDividends(msg.sender, owing);
-    }
-
     ////////////////////
     // * View & Pure  //
     ////////////////////
+
     /**
      * @notice Calculates the current penalty for a user's withdrawal.
      * @param user The address of the user.
@@ -241,16 +284,5 @@ contract StrongHands is Ownable {
         // ==
         // (users[user].balance * timeLeft) / (i_lockPeriod * 2)
         return (users[user].balance * timeLeft) / (i_lockPeriod * 2);
-    }
-
-    /**
-     * @notice Internal helper to calculate pending dividends for a user.
-     * @param user The user's info struct.
-     * @return Amount of dividends owed to the user.
-     */
-    function _dividendsOwing(UserInfo memory user) internal view returns (uint256) {
-        // how many new points since this user last claimed
-        uint256 newDividendPoints = totalDividendPoints - user.lastDividendPoints;
-        return (user.balance * newDividendPoints) / POINT_MULTIPLIER;
     }
 }

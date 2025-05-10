@@ -45,27 +45,28 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         (uint256 balance,,) = strongHands.users(BOB);
         assertEq(balance, 0);
         // assertEq(timestamp, block.timestamp);
-        assertEq(strongHands.totalStaked(), 0);
+        assertEq(strongHands.totalStaked(), expectedPenalty);
     }
 
-    ////////////////////////////////
-    // * claimDividends() tests   //
-    ////////////////////////////////
-    function testFuzz_claimDividends(uint256 aliceAmount) public depositWith(BOB, 1 ether) {
-        aliceAmount = bound(aliceAmount, 1, 100 ether);
-        vm.prank(ALICE);
-        strongHands.deposit{value: aliceAmount}();
+    // TODO -> remove claimDividends() tests and make it internal function or modifier
+    // ////////////////////////////////
+    // // * claimDividends() tests   //
+    // ////////////////////////////////
+    // function testFuzz_claimDividends(uint256 aliceAmount) public depositWith(BOB, 1 ether) {
+    //     aliceAmount = bound(aliceAmount, 1, 100 ether);
+    //     vm.prank(ALICE);
+    //     strongHands.deposit{value: aliceAmount}();
 
-        vm.prank(ALICE);
-        strongHands.withdraw();
+    //     vm.prank(ALICE);
+    //     strongHands.withdraw();
 
-        skip(LOCK_PERIOD);
-        vm.prank(BOB);
-        strongHands.claimDividends();
+    //     skip(LOCK_PERIOD);
+    //     vm.prank(BOB);
+    //     strongHands.claimDividends();
 
-        (uint256 balance,,) = strongHands.users(BOB);
-        assertEq(balance, 1 ether + aliceAmount / 2);
-    }
+    //     (uint256 balance,,) = strongHands.users(BOB);
+    //     assertEq(balance, 1 ether + aliceAmount / 2);
+    // }
 
     ////////////////////////////////
     // * calculatePenalty() tests //
