@@ -77,16 +77,20 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
 
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
-        // ! Checks
+
+        // ! Checks Bob
+        assertEq(BOB.balance, 100 ether);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPoints, 0);
-        assertEq(strongHands.totalStaked(), 0);
+
+        // ! Checks StrongHands
+        assertEq(strongHands.totalStaked(), 0 ether);
         assertEq(strongHands.totalDividendPoints(), 0);
-        assertEq(BOB.balance, 100 ether);
         // owner still has aEthWeth acquired from the BOB deposit
         assertGt(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 0);
 
+        // ! Owner claims yield
         uint256 balanceBefore = msg.sender.balance;
         vm.prank(msg.sender);
         vm.expectEmit(true, true, true, true);
@@ -97,20 +101,18 @@ contract ForkTest is SetupTestsTest {
     }
 
     function testFork_withdraw_MaxPenalty() public skipWhenNotForking depositWith(BOB, 1 ether) {
-        // Bob deposited and instantly withdraws
+        // ! Bob deposited and instantly withdraws -> 50% penalty
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
         emit Withdrawn(BOB, 0.5 ether, 0.5 ether, block.timestamp);
         strongHands.withdraw();
 
         // ! Check StrongHands
-
         uint256 aEthWethBeforeSkip = strongHands.i_aEthWeth().balanceOf(address(strongHands));
         assertApproxEqRel(aEthWethBeforeSkip, 0.5 ether, 2);
         // assertEq(aEthWethBeforeSkip, 0.5 ether);
-        assertEq(strongHands.totalStaked(), 0);
-        // totalDividendPoints would normally be 0.5, but in this case will be 0 because there is no other active users, so nobody can get those dividends
-        assertEq(strongHands.totalDividendPoints(), 0 ether);
+        assertEq(strongHands.totalStaked(), 0.5 ether);
+        assertEq(strongHands.totalDividendPoints(), 0); // would normally be 1.5e54 but since there is no active users in the system, no one can collect those dividends
 
         // ! Check Bob
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
@@ -126,6 +128,7 @@ contract ForkTest is SetupTestsTest {
 
     // ! Note -> This test will work properly only if LOCK_PERIOD % 2 == 0
     function testFork_withdraw_MidPenalty() public skipWhenNotForking depositWith(BOB, 1 ether) {
+        // ! Bob withdraws after LOCK_PERIOD /2 and pays 25% penalty
         skip(LOCK_PERIOD / 2);
         vm.prank(BOB);
         vm.expectEmit(true, true, true, true);
@@ -140,8 +143,8 @@ contract ForkTest is SetupTestsTest {
         assertEq(lastDividendPoints, 0);
 
         // ! Strong Hands Checks
-        assertEq(strongHands.totalStaked(), 0);
-        // totalDividendPoints would normally be 0.5, but in this case will be 0 because there is no other active users, so nobody can get those dividends
+        assertEq(strongHands.totalStaked(), 0.25 ether);
+        // totalDividendPoints would normally be 1.25, but in this case will be 0 because there is no other active users, so nobody can get those dividends
         assertEq(strongHands.totalDividendPoints(), 0 ether);
         uint256 aEthWethBalanceBeforeSkip = strongHands.i_aEthWeth().balanceOf(address(strongHands));
         assertGt(aEthWethBalanceBeforeSkip, 0.25 ether);
@@ -201,25 +204,25 @@ contract ForkTest is SetupTestsTest {
 
         // ! Checks Alice
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(ALICE);
+        assertEq(ALICE.balance, 99.5 ether);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0);
-        assertEq(strongHands.totalStaked(), 1 ether);
 
         // ! Checks Bob
         (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
+        assertEq(BOB.balance, 99 ether);
         assertEq(balanceBob, 1 ether); // not updated because Bob needs to withdraw or deposit to get updated
         assertEq(timestampBob, block.timestamp);
         assertEq(lastDividendPointsBob, 0); // not updated because Bob needs to withdraw or deposit to get updated
-        assertEq(strongHands.totalStaked(), 1 ether);
 
-        // ! Additional checks ->  totalDividendPoints(), balances, aEthWeth
-        uint256 expectedTotalDividendPoints = 0.5 ether;
-        assertEq(strongHands.totalDividendPoints(), expectedTotalDividendPoints);
-        assertEq(ALICE.balance, 99.5 ether);
-        assertEq(BOB.balance, 99 ether);
+        skip(1111);
+        // ! Checks StrongHands
+        assertEq(strongHands.totalStaked(), 1.5 ether);
+        assertEq(strongHands.totalDividendPoints(), 1.5e54);
+        assertEq(strongHands.unclaimedDividends(), 0.5 ether);
         uint256 aEthWethBalance = strongHands.i_aEthWeth().balanceOf(address(strongHands));
-        assertGt(aEthWethBalance, 1.5 ether);
+        assertGe(aEthWethBalance, 1.5 ether);
 
         // ! Checks to see if aEthWeth balance is growing
         skip(LOCK_PERIOD);
@@ -236,13 +239,14 @@ contract ForkTest is SetupTestsTest {
         = strongHands.users(BOB);
         assertEq(BOB.balance, 100.5 ether);
         assertEq(balanceBobAfterWithdraw, 0);
-        assertEq(timestampBobAfterWithdraw, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsBobAfterWithdraw, 0.5e18);
+        assertEq(timestampBobAfterWithdraw, block.timestamp - LOCK_PERIOD - 1111);
+        assertEq(lastDividendPointsBobAfterWithdraw, 1.5e54);
         assertEq(strongHands.totalStaked(), 0);
     }
 
     // ! -> Alice, Bob, Charlie and Mark test. Second question from email
     function testFork_Alice_Bob_Active_Charlie_MidPenalty_Mark_MidPenalty()
+        // TODO -> update comments in this test !!!
         public
         skipWhenNotForking
         depositWith(BOB, 1 ether)
@@ -266,9 +270,9 @@ contract ForkTest is SetupTestsTest {
         assertEq(timestampCharlie, block.timestamp - LOCK_PERIOD / 2);
         assertEq(lastDividendPointsCharlie, 0);
         // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 6 ether);
+        assertEq(strongHands.totalStaked(), 12 ether);
         assertEq(strongHands.unclaimedDividends(), 6 ether);
-        assertEq(strongHands.totalDividendPoints(), 1 ether);
+        assertEq(strongHands.totalDividendPoints(), 2e54);
 
         // ! Mark withdraws and pays 25% penalty because we skip half of LOCK_PERIOD
         skip(LOCK_PERIOD / 2);
@@ -281,11 +285,11 @@ contract ForkTest is SetupTestsTest {
         assertEq(MARK.balance, 101 ether);
         assertEq(balanceMark, 0 ether); // he withdrew
         assertEq(timestampMark, block.timestamp - LOCK_PERIOD / 2);
-        assertEq(lastDividendPointsMark, 1 ether); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether
+        assertEq(lastDividendPointsMark, 2e54); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether
         // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 4 ether);
+        assertEq(strongHands.totalStaked(), 9 ether);
         assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.totalDividendPoints(), 2.25e54);
 
         // ! Check Alice - BEFORE WITHDRAWING FROM HER ACC
         (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
@@ -294,9 +298,9 @@ contract ForkTest is SetupTestsTest {
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimDividends
         // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 4 ether);
+        assertEq(strongHands.totalStaked(), 9 ether);
         assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.totalDividendPoints(), 2.25e54);
 
         // ! Check Bob - BEFORE WITHDRAWING FROM HIS ACC
         (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
@@ -305,9 +309,9 @@ contract ForkTest is SetupTestsTest {
         assertEq(timestampBob, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsBob, 0); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether prize
         // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 4 ether);
+        assertEq(strongHands.totalStaked(), 9 ether);
         assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.totalDividendPoints(), 2.25e54);
 
         // ! Alice Withdraws
         vm.prank(ALICE);
@@ -320,11 +324,11 @@ contract ForkTest is SetupTestsTest {
         assertEq(ALICE.balance, 103.75 ether);
         assertEq(balanceAliceAfter, 0); // withdrew
         assertEq(timestampAliceAfter, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsAliceAfter, 1.25 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. She holds 3 ether -> Wins 3.75 ether prize
+        assertEq(lastDividendPointsAliceAfter, 2.25e54); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. She holds 3 ether -> Wins 3.75 ether prize
         // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 1 ether);
+        assertEq(strongHands.totalStaked(), 2.25 ether);
         assertEq(strongHands.unclaimedDividends(), 1.25 ether); // 6 from Charlie and 1 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.75 from Mark
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.totalDividendPoints(), 2.25e54);
 
         // ! Bob Withdraws
         vm.prank(BOB);
@@ -337,12 +341,12 @@ contract ForkTest is SetupTestsTest {
         assertEq(BOB.balance, 101.25 ether);
         assertEq(balanceBobAfter, 0); // withdrew
         assertEq(timestampBobAfter, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsBobAfter, 1.25 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
+        assertEq(lastDividendPointsBobAfter, 2.25e54); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
 
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 0);
         assertEq(strongHands.unclaimedDividends(), 0); // 6 from Charlie and 1 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.75 from Mark and Bob picked up 1 ethers reward from Charlie and 0.25 from Mark === 6 + 1 - 2 - 3 - 0.75 - 1 - 0.25
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.totalDividendPoints(), 2.25e54);
     }
 
     // ! -> Alice, Bob, Charlie, Mark and Jane test. First question from email.

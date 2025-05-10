@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {console} from "forge-std/Test.sol";
+
 import {IWrappedTokenGatewayV3} from "@aave/v3-origin/contracts/helpers/interfaces/IWrappedTokenGatewayV3.sol";
 import {Ownable} from "@aave/v3-origin/contracts/dependencies/openzeppelin/contracts/Ownable.sol";
 import {IPool} from "@aave/v3-origin/contracts/interfaces/IPool.sol";
@@ -82,6 +84,7 @@ contract StrongHands is Ownable {
     /// @notice Total amount of ETH (in wei) currently deposited and claimed dividends by all users in this contract.
     /// @dev Unclaimed dividends are not included in this total.
     /// @dev Sum of all user amounts `user.amount`
+    // TODO -> UPDATE NATSPEC DOCS !!!!!!!!!!!!
     uint256 public totalStaked;
 
     ///@notice Mapping of user addresses to their staking information.
@@ -144,23 +147,39 @@ contract StrongHands is Ownable {
      * @dev Emits a {Withdrawn} event.
      */
     function withdraw() external {
+        console.log("CALLED WITHDRAW ----------------------------");
         _claimDividends();
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
+        console.log("Initial Amount -> ", initialAmount); // 4
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
+        // ! Can cache user initial balance before _claimDividends() and then pass it to calculatePenalty
+        // ! That way it would calculate penalty to the original amount deposited and not compared to original + dividends
         uint256 penalty = calculatePenalty(msg.sender);
+        console.log("Penalty -> ", penalty); // 1
 
         user.balance = 0;
         uint256 payout = initialAmount - penalty;
+        console.log("Payout -> ", payout); // 3
         uint256 totalStakedBeforePayout = totalStaked;
+        console.log("TotalStakedBeforePayout -> ", totalStakedBeforePayout); // 12
         totalStaked -= payout;
+        console.log("Total Staked -> ", totalStaked); // 9
 
         // totalStaked > 0 bcz cant divide by 0
         // disburse
         if (penalty > 0 && initialAmount != totalStakedBeforePayout) {
             unclaimedDividends += penalty;
-            totalDividendPoints += (totalStaked * POINT_MULTIPLIER) / initialAmount;
+            console.log("UnclaimedDividends -> ", unclaimedDividends); // 6 - 2 + 1
+            // 9 > 4
+            if (totalStaked > initialAmount) {
+                // ! ADDED IF ELSE AND INSTEAD OF += PUT ONLY = !!!!! CHECK THOSE !!!
+                totalDividendPoints = (totalStaked * POINT_MULTIPLIER) / initialAmount;
+            } else {
+                totalDividendPoints = (initialAmount * POINT_MULTIPLIER) / totalStaked;
+            }
+            console.log("Total dividend points -> ", totalDividendPoints);
         }
 
         // TODO -> check reentrancy
