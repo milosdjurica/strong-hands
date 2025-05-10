@@ -33,6 +33,10 @@ contract StrongHands is Ownable {
     /// @param penalty The penalty amount redistributed to other users. Will be 0 if user withdraws after his `i_lockPeriod` has passed.
     /// @param timestamp The timestamp of withdrawal.
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
+    /// @notice Emitted when owner claims yield.
+    /// @param owner The address of the owner.
+    /// @param amount The amount of yield owner claimed.
+    event ClaimedYield(address indexed owner, uint256 indexed amount);
 
     ////////////////////
     // * Structs 	  //
@@ -58,21 +62,25 @@ contract StrongHands is Ownable {
     // * Immutables	  //
     ////////////////////
     /// @notice Duration (in seconds) during which early withdrawals are subject to penalties.
-    /// @notice Users can withdraw at any time, but penalties apply if they withdraw before this period ends.
+    /// Users can withdraw at any time, but penalties apply if they withdraw before this period ends.
+    /// @dev Immutable variable
     uint256 public immutable i_lockPeriod;
     /// @notice Aave V3 WrappedTokenGatewayV3 contract for depositing and withdrawing ETH in the Aave V3 lending pool.
-    /// @dev Aave V3 WrappedTokenGatewayV3 contract that wraps/unwraps raw ETH into/from WETH and deposits/withdraw from Aave V3 lending pool.
+    /// @dev Aave V3 WrappedTokenGatewayV3 contract that wraps/unwraps raw ETH into/from WETH and deposits/withdraw into/from Aave V3 lending pool.
+    /// @dev Immutable variable
     IWrappedTokenGatewayV3 public immutable i_wrappedTokenGatewayV3;
     /// @notice Aave V3 lending pool contract.
+    /// @dev Immutable variable
     IPool public immutable i_pool;
     /// @notice aEthWETH token contract representing deposited ETH + yield.
+    /// @dev Immutable variable
     IERC20 public immutable i_aEthWeth;
 
     ////////////////////
     // * State        //
     ////////////////////
     /// @notice Total amount of ETH (in wei) currently deposited and claimed rewards by all users in this contract.
-    /// @notice Unclaimed rewards/dividends are not included in this total.
+    /// @dev Unclaimed rewards/dividends are not included in this total.
     /// @dev Sum of all user amounts `user.amount`
     uint256 public totalStaked;
 
@@ -86,6 +94,14 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Constructor  //
     ////////////////////
+
+    /**
+     * @notice Initializes the StrongHands contract
+     * @param _lockPeriod The lock duration in seconds
+     * @param _wrappedTokenGatewayV3 Aave’s Wrapped Token Gateway address
+     * @param _pool Aave V3 lending pool address
+     * @param _aEthWeth The aEthWETH token contract used for yield tracking
+     */
     constructor(uint256 _lockPeriod, IWrappedTokenGatewayV3 _wrappedTokenGatewayV3, IPool _pool, IERC20 _aEthWeth) {
         i_lockPeriod = _lockPeriod;
         i_wrappedTokenGatewayV3 = _wrappedTokenGatewayV3;
@@ -96,8 +112,13 @@ contract StrongHands is Ownable {
     ////////////////////
     // * External 	  //
     ////////////////////
-    // can deposit multiple times
-    // depositing starts new lock period counting for user
+    /**
+     * @notice Updates user info and stakes ETH into the contract, starting or restarting the lock period for user.
+     * Claims any unclaimed rewards that belong to the caller beforehand.
+     * @dev Reverts `StrongHands__ZeroDeposit()` if `msg.value == 0`.
+     * @dev Wraps ETH and deposit into the Aave pool via `i_wrappedTokenGatewayV3`.
+     * @dev Emits a {Deposited} event.
+     */
     function deposit() external payable {
         claimRewards();
         if (msg.value == 0) revert StrongHands__ZeroDeposit();
@@ -105,16 +126,22 @@ contract StrongHands is Ownable {
         UserInfo storage user = users[msg.sender];
         user.balance += msg.value;
         user.lastDepositTimestamp = block.timestamp;
-
         totalStaked += msg.value;
 
-        // AAVE_POOL argument is not important as WrappedTokenGatewayV3 will always use its own address and ignore this one, although this pool address is correct at this point of time
         i_wrappedTokenGatewayV3.depositETH{value: msg.value}(address(i_pool), address(this), 0);
         emit Deposited(msg.sender, msg.value, block.timestamp);
     }
 
-    // must withdraw all, can not withdraw partially
-    // penalty goes from 50% at start to the 0% at the end of lock period
+    /**
+     * @notice Withdraw entire stake. Applies penalty if lock period not passed.
+     * The penalty starts at 50% and gradually decreases to 0% as the lock period expires.
+     * Claims any unclaimed rewards that belong to the caller beforehand.
+     * @dev Partial withdrawals are not allowed. Calculates and distributes penalty to remaining stakers.
+     * @dev Reverts `StrongHands__ZeroAmount()` if user has nothing to withdraw.
+     * @dev Unwraps aEthWETH and sends ETH to the user via `i_wrappedTokenGatewayV3`.
+     * @dev If the caller is the last active staker, their penalty remains in the contract forever (as there is no one to collect it) and accrues yield for the owner.
+     * @dev Emits a {Withdrawn} event.
+     */
     function withdraw() external {
         claimRewards();
         UserInfo storage user = users[msg.sender];
@@ -133,8 +160,6 @@ contract StrongHands is Ownable {
         // disburse
         if (penalty > 0 && totalStaked > 0) {
             unclaimedDividends += penalty;
-            // penalty / totalStaked -> How much penalty for each wei that is staked
-            // * POINT_MULTIPLIER for precision
             totalDividendPoints += (penalty * POINT_MULTIPLIER) / totalStaked;
         }
 
@@ -150,18 +175,25 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Only Owner   //
     ////////////////////
-    // ONLY OWNER can call this function. He can call it at any moment
-    // could be changed to always withdraw full yield and user has no option to choose
+    /**
+     * @notice Allows the contract owner to claim protocol-generated yield (interest).
+     * @param amount The amount of yield (in wei) to withdraw. Must be greater than 0 and less than available yield.
+     * @dev Only owner of the contract can call this function.
+     * @dev Reverts if the caller is not the owner of the contract.
+     * @dev Reverts with `StrongHands__ZeroAmount()`.
+     * @dev Reverts with `StrongHands__NotEnoughYield(amount, availableYield)` if amount exceeds available yield.
+     */
     function claimYield(uint256 amount) external onlyOwner {
         if (amount == 0) revert StrongHands__ZeroAmount();
-        uint256 balanceWithYield = i_aEthWeth.balanceOf(address(this));
-        uint256 yield = balanceWithYield - totalStaked - unclaimedDividends;
 
-        // This could be changed to give back full yield if amount is > yield
-        if (amount > yield) revert StrongHands__NotEnoughYield(amount, yield);
+        uint256 balanceWithYield = i_aEthWeth.balanceOf(address(this));
+        uint256 availableYield = balanceWithYield - totalStaked - unclaimedDividends;
+        if (amount > availableYield) revert StrongHands__NotEnoughYield(amount, availableYield);
 
         i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), amount);
         i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), amount, msg.sender);
+
+        emit ClaimedYield(msg.sender, amount);
     }
 
     ////////////////////
