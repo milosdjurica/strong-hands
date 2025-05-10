@@ -89,6 +89,8 @@ contract ForkTest is SetupTestsTest {
 
         uint256 balanceBefore = msg.sender.balance;
         vm.prank(msg.sender);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedYield(msg.sender, 10);
         strongHands.claimYield(10);
         uint256 balanceAfter = msg.sender.balance;
         assertEq(balanceAfter - 10, balanceBefore);
@@ -171,11 +173,13 @@ contract ForkTest is SetupTestsTest {
     }
 
     function testFork_collectYield() public depositWith(BOB, 1 ether) depositWith(ALICE, 1 ether) skipWhenNotForking {
-        uint256 balanceWithYield = strongHands.i_aEthWeth().balanceOf(address(this));
         skip(LOCK_PERIOD);
+        uint256 balanceWithYield = strongHands.i_aEthWeth().balanceOf(address(strongHands));
         vm.prank(msg.sender);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedYield(msg.sender, 0.01 ether);
         strongHands.claimYield(1e16);
-        uint256 balanceWithYieldAfter = strongHands.i_aEthWeth().balanceOf(address(this));
+        uint256 balanceWithYieldAfter = strongHands.i_aEthWeth().balanceOf(address(strongHands));
 
         assertEq(balanceWithYieldAfter + 1e16, balanceWithYield);
     }

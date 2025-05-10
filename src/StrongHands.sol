@@ -33,6 +33,10 @@ contract StrongHands is Ownable {
     /// @param penalty The penalty amount redistributed to other users. Will be 0 if user withdraws after his `i_lockPeriod` has passed.
     /// @param timestamp The timestamp of withdrawal.
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
+    /// @notice Emitted when user claims dividends.
+    /// @param user The address of the caller.
+    /// @param amountClaimed The amount of dividends claimed by user.
+    event ClaimedDividends(address indexed user, uint256 indexed amountClaimed);
     /// @notice Emitted when owner claims yield.
     /// @param owner The address of the owner.
     /// @param amount The amount of yield owner claimed.
@@ -213,7 +217,7 @@ contract StrongHands is Ownable {
         }
         // This is updated every time, because we want to update user when he enters first time too
         user.lastDividendPoints = totalDividendPoints;
-        // TODO -> emit event
+        emit ClaimedDividends(msg.sender, owing);
     }
 
     ////////////////////

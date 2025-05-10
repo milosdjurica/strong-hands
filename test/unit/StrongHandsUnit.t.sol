@@ -128,18 +128,18 @@ contract StrongHandsUnitTest is SetupTestsTest {
     ////////////////////////////////
     // * collectYield() tests     //
     ////////////////////////////////
-    function testFork_collectYield_RevertIf_NotOwner() public depositWith(BOB, 1 ether) {
+    function test_collectYield_RevertIf_NotOwner() public depositWith(BOB, 1 ether) {
         vm.expectRevert("Ownable: caller is not the owner");
         strongHands.claimYield(1);
     }
 
-    function testFork_collectYield_RevertIf_ZeroAmount() public depositWith(BOB, 1 ether) {
+    function test_collectYield_RevertIf_ZeroAmount() public depositWith(BOB, 1 ether) {
         vm.prank(msg.sender);
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
         strongHands.claimYield(0);
     }
 
-    function testFork_collectYield_RevertIf_NotEnoughYield() public depositWith(BOB, 1 ether) {
+    function test_collectYield_RevertIf_NotEnoughYield() public depositWith(BOB, 1 ether) {
         vm.prank(msg.sender);
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__NotEnoughYield.selector, 1, 0));
         strongHands.claimYield(1);
@@ -148,8 +148,10 @@ contract StrongHandsUnitTest is SetupTestsTest {
     //////////////////////////////
     // * claimDividends() Tests //
     //////////////////////////////
-    function test_claimRewards_NoUpdate() public depositWith(BOB, 1 ether) {
+    function test_claimDividends_NoUpdate() public depositWith(BOB, 1 ether) {
         vm.prank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedDividends(BOB, 0);
         strongHands.claimDividends();
 
         // ! Check Bob
@@ -164,14 +166,18 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 0);
     }
 
-    function test_claimRewards_NoUpdate_MultipleDeposits()
+    function test_claimDividends_NoUpdate_MultipleDeposits()
         public
         depositWith(ALICE, 1 ether)
         depositWith(BOB, 1 ether)
     {
         vm.startPrank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedDividends(BOB, 0);
         strongHands.claimDividends();
         strongHands.deposit{value: 1 ether}();
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedDividends(BOB, 0);
         strongHands.claimDividends();
         vm.stopPrank();
 
@@ -187,8 +193,10 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 0);
     }
 
-    function test_claimRewards_Update() public depositWith(ALICE, 1 ether) depositWith(BOB, 1 ether) {
+    function test_claimDividends_Update() public depositWith(ALICE, 1 ether) depositWith(BOB, 1 ether) {
         vm.prank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedDividends(BOB, 0);
         strongHands.claimDividends();
 
         // ! Alice pays 50% -> 0.5 eth
@@ -196,7 +204,11 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.withdraw();
 
         vm.startPrank(BOB);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedDividends(BOB, 0.5 ether);
         strongHands.deposit{value: 1 ether}();
+        vm.expectEmit(true, true, true, true);
+        emit ClaimedDividends(BOB, 0);
         strongHands.claimDividends();
         vm.stopPrank();
 

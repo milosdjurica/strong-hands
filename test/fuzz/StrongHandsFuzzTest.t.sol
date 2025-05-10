@@ -48,6 +48,10 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         assertEq(strongHands.totalStaked(), 0);
     }
 
+    // TODO -> Write those 2 tests
+    function testFuzz_ClaimDividends() public {}
+    function testFuzz_ClaimYield() public {}
+
     ////////////////////////////////
     // * calculatePenalty() tests //
     ////////////////////////////////
