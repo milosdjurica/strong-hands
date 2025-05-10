@@ -229,7 +229,6 @@ contract StrongHands is Ownable {
      * @return The penalty amount to be redistributed to other active users.
      */
     function calculatePenalty(address user) public view returns (uint256) {
-        // TODO -> Make it internal?
         uint256 unlockTimestamp = users[user].lastDepositTimestamp + i_lockPeriod;
         if (block.timestamp >= unlockTimestamp) return 0;
 

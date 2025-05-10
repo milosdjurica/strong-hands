@@ -31,10 +31,10 @@ contract StrongHandsDeploy is Script {
     IERC20 public constant A_WETH_MAINNET = IERC20(0x4d5F47FA6A74757f35C14fD3a6Ef8E3C9BC514E8);
 
     StrongHands public strongHands;
-    IWrappedTokenGatewayV3 wrappedTokenGatewayV3;
-    IPool pool;
+    IWrappedTokenGatewayV3 public wrappedTokenGatewayV3;
+    IPool public pool;
     // IWETH weth;
-    IERC20 aWeth;
+    IERC20 public aWeth;
 
     function setUp() public {
         if (block.chainid == 31337) {

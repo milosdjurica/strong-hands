@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import {SetupTestsTest} from "../SetupTests.sol";
 import {StrongHands} from "../../src/StrongHands.sol";
 import {console} from "forge-std/Test.sol";
+import {StrongHandsHarness} from "../harness/StrongHandsHarness.sol";
 
 contract StrongHandsUnitTest is SetupTestsTest {
     function test_constructor() public view {
@@ -257,7 +258,36 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 1 ether); // 0.5 + 0.5
     }
 
-    // TODO -> Write tests for internal functions with harness contract
+    ///////////////////////////////
+    // * _dividendsOwing() Tests //
+    ///////////////////////////////
+    function test_dividendsOwing_Zero() public {
+        StrongHandsHarness harness = new StrongHandsHarness(
+            deployScript.LOCK_PERIOD(), deployScript.wrappedTokenGatewayV3(), deployScript.pool(), deployScript.aWeth()
+        );
+
+        vm.prank(BOB);
+        harness.deposit{value: 1 ether}();
+        assertEq(harness.harnessDividendsOwing(BOB), 0);
+    }
+
+    function test_dividendsOwing() public {
+        StrongHandsHarness harness = new StrongHandsHarness(
+            deployScript.LOCK_PERIOD(), deployScript.wrappedTokenGatewayV3(), deployScript.pool(), deployScript.aWeth()
+        );
+
+        vm.prank(BOB);
+        harness.deposit{value: 1 ether}();
+        assertEq(harness.harnessDividendsOwing(BOB), 0);
+
+        vm.startPrank(ALICE);
+        harness.deposit{value: 2 ether}();
+        harness.withdraw();
+        vm.stopPrank();
+
+        assertEq(harness.harnessDividendsOwing(BOB), 1 ether);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
