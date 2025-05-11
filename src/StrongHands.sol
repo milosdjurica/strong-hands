@@ -33,10 +33,11 @@ contract StrongHands is Ownable {
     /// @param penalty The penalty amount redistributed to other users. Will be 0 if user withdraws after his `i_lockPeriod` has passed.
     /// @param timestamp The timestamp of withdrawal.
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
-    /// @notice Emitted when user claims dividends.
+    /// @notice Emitted when user claims his dividends.
     /// @param user The address of the caller.
     /// @param amountClaimed The amount of dividends claimed by user.
-    // TODO -> Update natspec EVERYWHERE
+    /// @param latestDividendPoints User's dividend points after the claim.
+    /// @param previousDividendPoints Use'rs dividend points before the claim.
     event ClaimedDividends(
         address indexed user,
         uint256 indexed amountClaimed,
@@ -51,10 +52,11 @@ contract StrongHands is Ownable {
     ////////////////////
     // * Structs 	  //
     ////////////////////
-    /// @notice Stores individual user staking info
-    /// @param balance The amount of ETH deposited by the user
+    /// @notice Stores individual user staking and dividend information.
+    /// @param balance The amount of ETH deposited by the user.
+    /// @param claimedDividends The amount of dividends that user claimed. Total number of dividends that belong to user could be higher if user didn't claim them.
     /// @param lastDepositTimestamp The timestamp of the user's last deposit
-    /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `claimDividends()` function is called directly
+    /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `claimDividends()` function is called directly.
     struct UserInfo {
         uint256 balance;
         uint256 claimedDividends;
@@ -92,20 +94,19 @@ contract StrongHands is Ownable {
     ////////////////////
     /// @notice Total amount of ETH (in wei) currently deposited and claimed dividends by all users in this contract.
     /// @dev Unclaimed dividends are not included in this total.
-    /// @dev Sum of all user amounts `user.amount`
+    /// @dev Sum of all user amounts `user.amount` and all claimed dividends by user `user.claimedDividends`.
     uint256 public totalStaked;
 
-    ///@notice Mapping of user addresses to their staking information.
+    ///@notice Mapping of user addresses to their staking and dividend information.
     mapping(address => UserInfo) public users;
     /// @notice Cumulative dividend points used to track penalty distributions.
     uint256 public totalDividendPoints;
-    /// @notice Sum of all penalties collected but not yet claimed by users.
+    /// @notice Sum of all penalties/dividends that are not yet claimed by users.
     uint256 public unclaimedDividends;
 
     ////////////////////
     // * Constructor  //
     ////////////////////
-
     /**
      * @notice Initializes the StrongHands contract
      * @param _lockPeriod The lock duration in seconds
@@ -144,13 +145,13 @@ contract StrongHands is Ownable {
     }
 
     /**
-     * @notice Withdraw entire stake. Applies penalty if lock period not passed.
+     * @notice Withdraw entire stake. Applies penalty if lock period has not passed.
      * The penalty starts at 50% and gradually decreases to 0% as the lock period expires.
      * Claims any unclaimed dividends that belong to the caller beforehand.
      * @dev Partial withdrawals are not allowed. Calculates and distributes penalty to remaining stakers.
      * @dev Reverts `StrongHands__ZeroAmount()` if user has nothing to withdraw.
      * @dev Unwraps aEthWETH and sends ETH to the user via `i_wrappedTokenGatewayV3`.
-     * @dev If the caller is the last active staker, their penalty remains in the contract forever (as there is no one to collect it) and accrues yield for the owner.
+     * @dev If the caller is the last active staker and pays a penalty, there are no other users to distribute it to. The penalty remains staked in the Aave protocol, and the contract owner can collect it as "yield" via the `claimYield()` function.
      * @dev Emits a {Withdrawn} event.
      */
     function withdraw() external {
@@ -165,8 +166,6 @@ contract StrongHands is Ownable {
         user.balance = 0;
         user.claimedDividends = 0;
         uint256 payout = amountWithDividends - penalty;
-        // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
-        // Maybe move this after disburse???
         totalStaked -= amountWithDividends;
 
         // totalStaked > 0 bcz cant divide by 0
@@ -176,9 +175,6 @@ contract StrongHands is Ownable {
             totalDividendPoints += (penalty * POINT_MULTIPLIER) / totalStaked;
         }
 
-        // TODO -> check reentrancy
-
-        // !  approving aEthWeth transfer before withdrawing
         i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), payout);
         i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), payout, msg.sender);
 
@@ -256,7 +252,7 @@ contract StrongHands is Ownable {
     }
 
     /**
-     * @notice Internal helper to calculate pending dividends for a user.
+     * @notice Internal function to calculate pending dividends for a user.
      * @param user The user's info struct.
      * @return Amount of dividends owed to the user.
      */
