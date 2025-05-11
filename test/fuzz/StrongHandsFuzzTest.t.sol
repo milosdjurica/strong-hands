@@ -19,7 +19,7 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         emit Deposited(BOB, amountToDeposit, block.timestamp);
         strongHands.deposit{value: amountToDeposit}();
 
-        (uint256 balance, uint256 timestamp,) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp,) = strongHands.users(BOB);
 
         assertEq(balance, amountToDeposit);
         assertEq(timestamp, block.timestamp);
@@ -42,7 +42,7 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         emit Withdrawn(BOB, expectedPayout, expectedPenalty, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 balance,,) = strongHands.users(BOB);
+        (uint256 balance,,,) = strongHands.users(BOB);
         assertEq(balance, 0);
         // assertEq(timestamp, block.timestamp);
         assertEq(strongHands.totalStaked(), 0);
@@ -63,8 +63,9 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         vm.prank(BOB);
         strongHands.claimDividends();
 
-        (uint256 balance,,) = strongHands.users(BOB);
-        assertEq(balance, 1 ether + aliceAmount / 2);
+        (uint256 balance, uint256 claimedDividends,,) = strongHands.users(BOB);
+        assertEq(balance, 1 ether);
+        assertEq(claimedDividends, aliceAmount / 2);
     }
 
     ////////////////////////////////
@@ -87,7 +88,7 @@ contract StrongHandsFuzzTest is SetupTestsTest {
         vm.prank(BOB);
         uint256 penalty = strongHands.calculatePenalty(BOB);
 
-        (uint256 balance, uint256 lastDepositTimestamp,) = strongHands.users(BOB);
+        (uint256 balance,, uint256 lastDepositTimestamp,) = strongHands.users(BOB);
 
         uint256 unlockTimestamp = lastDepositTimestamp + LOCK_PERIOD;
         uint256 timeLeft = unlockTimestamp - block.timestamp;

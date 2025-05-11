@@ -44,7 +44,7 @@ contract ForkTest is SetupTestsTest {
         emit Deposited(BOB, 1 ether, block.timestamp);
         strongHands.deposit{value: 1 ether}();
 
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
 
         assertEq(balance, 1 ether);
         assertEq(timestamp, block.timestamp);
@@ -76,7 +76,7 @@ contract ForkTest is SetupTestsTest {
         emit Withdrawn(BOB, 1 ether, 0, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         // ! Checks
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD);
@@ -113,7 +113,7 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.totalDividendPoints(), 0 ether);
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(BOB.balance, 99.5 ether);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp);
@@ -133,7 +133,7 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Bob Checks
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(BOB.balance, 99.75 ether);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD / 2);
@@ -200,7 +200,7 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Checks Alice
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(ALICE);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(ALICE);
         assertEq(ALICE.balance, 99.5 ether);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp);
@@ -208,7 +208,7 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.totalStaked(), 1 ether);
 
         // ! Checks Bob
-        (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
+        (uint256 balanceBob,, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
         assertEq(BOB.balance, 99 ether);
         assertEq(balanceBob, 1 ether); // not updated because Bob needs to withdraw or deposit to get updated
         assertEq(timestampBob, block.timestamp);
@@ -232,8 +232,12 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Checks
-        (uint256 balanceBobAfterWithdraw, uint256 timestampBobAfterWithdraw, uint256 lastDividendPointsBobAfterWithdraw)
-        = strongHands.users(BOB);
+        (
+            uint256 balanceBobAfterWithdraw,
+            ,
+            uint256 timestampBobAfterWithdraw,
+            uint256 lastDividendPointsBobAfterWithdraw
+        ) = strongHands.users(BOB);
         assertEq(BOB.balance, 100.5 ether);
         assertEq(balanceBobAfterWithdraw, 0);
         assertEq(timestampBobAfterWithdraw, block.timestamp - LOCK_PERIOD);
@@ -259,7 +263,7 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Charlie
-        (uint256 balanceCharlie, uint256 timestampCharlie, uint256 lastDividendPointsCharlie) =
+        (uint256 balanceCharlie,, uint256 timestampCharlie, uint256 lastDividendPointsCharlie) =
             strongHands.users(CHARLIE);
         assertEq(CHARLIE.balance, 94 ether);
         assertEq(balanceCharlie, 0 ether); // he withdrew
@@ -276,73 +280,65 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Mark
-        (uint256 balanceMark, uint256 timestampMark, uint256 lastDividendPointsMark) = strongHands.users(MARK);
-        // 100 - 2 deposited + 2 prize - 1 ether penalty (25% of 2 deposited + 2 prize) + 3 withdrawn == 101 ether
-        assertEq(MARK.balance, 101 ether);
+        (uint256 balanceMark,, uint256 timestampMark, uint256 lastDividendPointsMark) = strongHands.users(MARK);
+        // 100 - 2 deposited + 2 prize - 0.5 ether penalty (25% of 2 deposited) => 3.5 to withdraw == 101.5 ether
+        assertEq(MARK.balance, 101.5 ether);
         assertEq(balanceMark, 0 ether); // he withdrew
         assertEq(timestampMark, block.timestamp - LOCK_PERIOD / 2);
         assertEq(lastDividendPointsMark, 1 ether); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 4 ether);
-        assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.unclaimedDividends(), 4.5 ether); // 6 from Charlie + 0.5 from Mark but Mark picked up 2 ethers reward from Charlie
+        assertEq(strongHands.totalDividendPoints(), 1.125 ether); // 1 from Charlie and 0.5/4 from mark = 1.125
 
         // ! Check Alice - BEFORE WITHDRAWING FROM HER ACC
-        (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
+        (uint256 balanceAlice,, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
         assertEq(ALICE.balance, 97 ether);
         assertEq(balanceAlice, 3 ether); // not updated because Alice didnt call claimDividends
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimDividends
-        // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 4 ether);
-        assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
 
         // ! Check Bob - BEFORE WITHDRAWING FROM HIS ACC
-        (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
+        (uint256 balanceBob,, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
         assertEq(BOB.balance, 99 ether);
         assertEq(balanceBob, 1 ether); // not updated because Bob didnt call claimDividends
         assertEq(timestampBob, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsBob, 0); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether prize
-        // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 4 ether);
-        assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
 
         // ! Alice Withdraws
         vm.prank(ALICE);
         strongHands.withdraw();
 
         // ! Check Alice - AFTER WITHDRAWING FROM HER ACC
-        (uint256 balanceAliceAfter, uint256 timestampAliceAfter, uint256 lastDividendPointsAliceAfter) =
+        (uint256 balanceAliceAfter,, uint256 timestampAliceAfter, uint256 lastDividendPointsAliceAfter) =
             strongHands.users(ALICE);
-        // 100 - 3 deposited + 3 from Charlie + 3 withdrawn + 0.75 from Mark
-        assertEq(ALICE.balance, 103.75 ether);
+        // 100 - 3 deposited + 3 from Charlie + 3 withdrawn + (0.5/4*3) => 0.375 from Mark
+        assertEq(ALICE.balance, 103.375 ether);
         assertEq(balanceAliceAfter, 0); // withdrew
         assertEq(timestampAliceAfter, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsAliceAfter, 1.25 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. She holds 3 ether -> Wins 3.75 ether prize
+        assertEq(lastDividendPointsAliceAfter, 1.125 ether); // this is 1 ether from Charlie + 0.125 from Mark - For 1 ether holding, you win 1.125 ether. She holds 3 ether -> Wins 3.375 ether prize
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 1 ether);
-        assertEq(strongHands.unclaimedDividends(), 1.25 ether); // 6 from Charlie and 1 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.75 from Mark
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.unclaimedDividends(), 1.125 ether); // 6 from Charlie and 0.5 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.375 from Mark
+        assertEq(strongHands.totalDividendPoints(), 1.125 ether);
 
         // ! Bob Withdraws
         vm.prank(BOB);
         strongHands.withdraw();
 
         // ! Check Bob - AFTER WITHDRAWING FROM HIS ACC
-        (uint256 balanceBobAfter, uint256 timestampBobAfter, uint256 lastDividendPointsBobAfter) =
+        (uint256 balanceBobAfter,, uint256 timestampBobAfter, uint256 lastDividendPointsBobAfter) =
             strongHands.users(BOB);
-        // 100 - 1 deposited + 1 from Charlie + 1 withdrawn + 0.25 from Mark
-        assertEq(BOB.balance, 101.25 ether);
+        // 100 - 1 deposited + 1 from Charlie + 1 withdrawn + 0.125 from Mark
+        assertEq(BOB.balance, 101.125 ether);
         assertEq(balanceBobAfter, 0); // withdrew
         assertEq(timestampBobAfter, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsBobAfter, 1.25 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
+        assertEq(lastDividendPointsBobAfter, 1.125 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
 
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 0);
-        assertEq(strongHands.unclaimedDividends(), 0); // 6 from Charlie and 1 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.75 from Mark and Bob picked up 1 ethers reward from Charlie and 0.25 from Mark === 6 + 1 - 2 - 3 - 0.75 - 1 - 0.25
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.unclaimedDividends(), 0); // 6 from Charlie and 0.5 from Mark. Mark picked up 2 ethers reward from Charlie. Alice picked up 3 ethers reward from Charlie and 0.375 from Mark. Bob picked up 1 ethers reward from Charlie and 0.125 from Mark === 6 + 0.5 - 2 - 3 - 0.375 - 1 - 0.125
+        assertEq(strongHands.totalDividendPoints(), 1.125 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
     }
 
     // ! -> Alice, Bob, Charlie, Mark and Jane test. First question from email.
@@ -360,6 +356,33 @@ contract ForkTest is SetupTestsTest {
         vm.prank(JANE);
         strongHands.deposit{value: 6 ether}();
 
+        // ! Checks Alice
+        (uint256 balanceAlice, uint256 claimedDividendsAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) =
+            strongHands.users(ALICE);
+        assertEq(ALICE.balance, 97 ether);
+        assertEq(balanceAlice, 3 ether);
+        assertEq(claimedDividendsAlice, 0 ether); // didn't claim
+        assertEq(timestampAlice, block.timestamp - LOCK_PERIOD / 2);
+        assertEq(lastDividendPointsAlice, 0 ether); // didn't claim
+        (uint256 balanceBob, uint256 claimedDividendsBob, uint256 timestampBob, uint256 lastDividendPointsBob) =
+            strongHands.users(BOB);
+
+        // ! Checks Bob
+        assertEq(BOB.balance, 99 ether);
+        assertEq(balanceBob, 1 ether);
+        assertEq(claimedDividendsBob, 0 ether); // didn't claim
+        assertEq(timestampBob, block.timestamp - LOCK_PERIOD / 2);
+        assertEq(lastDividendPointsBob, 0 ether); // didn't claim
+        (uint256 balanceMark, uint256 claimedDividendsMark, uint256 timestampMark, uint256 lastDividendPointsMark) =
+            strongHands.users(MARK);
+
+        // ! Checks Mark
+        assertEq(MARK.balance, 98 ether);
+        assertEq(balanceMark, 2 ether);
+        assertEq(claimedDividendsMark, 0 ether); // didn't claim
+        assertEq(timestampMark, block.timestamp - LOCK_PERIOD / 2);
+        assertEq(lastDividendPointsMark, 0 ether); // didn't claim
+
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 12 ether);
         assertEq(strongHands.unclaimedDividends(), 6 ether);
@@ -376,7 +399,7 @@ contract ForkTest is SetupTestsTest {
         vm.prank(JANE);
         strongHands.withdraw();
         // ! Checks Jane
-        (uint256 balanceJane, uint256 timestampJane, uint256 lastDividendPointsJane) = strongHands.users(JANE);
+        (uint256 balanceJane,, uint256 timestampJane, uint256 lastDividendPointsJane) = strongHands.users(JANE);
         assertEq(JANE.balance, 109 ether);
         assertEq(balanceJane, 0 ether); // withdrew
         assertEq(timestampJane, block.timestamp - LOCK_PERIOD);
@@ -408,12 +431,41 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 6 ether);
         assertEq(strongHands.totalDividendPoints(), 1 ether);
 
+        // ! Alice, Bob and Mark claim
         vm.prank(ALICE);
         strongHands.claimDividends();
         vm.prank(BOB);
         strongHands.claimDividends();
         vm.prank(MARK);
         strongHands.claimDividends();
+
+        (uint256 balanceAlice, uint256 claimedDividendsAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) =
+            strongHands.users(ALICE);
+        // ! Checks Alice
+        assertEq(ALICE.balance, 97 ether);
+        assertEq(balanceAlice, 3 ether);
+        assertEq(claimedDividendsAlice, 3 ether);
+        assertEq(timestampAlice, block.timestamp - LOCK_PERIOD / 2);
+        assertEq(lastDividendPointsAlice, 1 ether);
+        (uint256 balanceBob, uint256 claimedDividendsBob, uint256 timestampBob, uint256 lastDividendPointsBob) =
+            strongHands.users(BOB);
+
+        // ! Checks Bob
+        assertEq(BOB.balance, 99 ether);
+        assertEq(balanceBob, 1 ether);
+        assertEq(claimedDividendsBob, 1 ether);
+        assertEq(timestampBob, block.timestamp - LOCK_PERIOD / 2);
+        assertEq(lastDividendPointsBob, 1 ether);
+        (uint256 balanceMark, uint256 claimedDividendsMark, uint256 timestampMark, uint256 lastDividendPointsMark) =
+            strongHands.users(MARK);
+
+        // ! Checks Mark
+        assertEq(MARK.balance, 98 ether);
+        assertEq(balanceMark, 2 ether);
+        assertEq(claimedDividendsMark, 2 ether);
+        assertEq(timestampMark, block.timestamp - LOCK_PERIOD / 2);
+        assertEq(lastDividendPointsMark, 1 ether);
+
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 18 ether);
         assertEq(strongHands.unclaimedDividends(), 0 ether);
@@ -430,9 +482,11 @@ contract ForkTest is SetupTestsTest {
         vm.prank(JANE);
         strongHands.withdraw();
         // ! Checks Jane
-        (uint256 balanceJane, uint256 timestampJane, uint256 lastDividendPointsJane) = strongHands.users(JANE);
+        (uint256 balanceJane, uint256 claimedDividendsJane, uint256 timestampJane, uint256 lastDividendPointsJane) =
+            strongHands.users(JANE);
         assertEq(JANE.balance, 106 ether);
         assertEq(balanceJane, 0 ether); // withdrew
+        assertEq(claimedDividendsJane, 0 ether); // withdrew
         assertEq(timestampJane, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsJane, 2 ether); // 1 before + 1 from Mia
 
@@ -450,7 +504,7 @@ contract ForkTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Charlie
-        (uint256 balanceCharlie, uint256 timestampCharlie, uint256 lastDividendPointsCharlie) =
+        (uint256 balanceCharlie,, uint256 timestampCharlie, uint256 lastDividendPointsCharlie) =
             strongHands.users(CHARLIE);
         assertEq(CHARLIE.balance, 94 ether);
         assertEq(balanceCharlie, 0 ether); // he withdrew
@@ -458,21 +512,21 @@ contract ForkTest is SetupTestsTest {
         assertEq(lastDividendPointsCharlie, 0);
 
         // ! Check Mark
-        (uint256 balanceMark, uint256 timestampMark, uint256 lastDividendPointsMark) = strongHands.users(MARK);
+        (uint256 balanceMark,, uint256 timestampMark, uint256 lastDividendPointsMark) = strongHands.users(MARK);
         assertEq(MARK.balance, 98 ether);
         assertEq(balanceMark, 2 ether); // not updated because Mark didnt call claimDividends
         assertEq(timestampMark, block.timestamp - LOCK_PERIOD / 2);
         assertEq(lastDividendPointsMark, 0); // not updated because Mark didnt call claimDividends
 
         // ! Check Alice
-        (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
+        (uint256 balanceAlice,, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
         assertEq(ALICE.balance, 97 ether);
         assertEq(balanceAlice, 3 ether); // not updated because Alice didnt call claimDividends
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD / 2);
         assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimDividends
 
         // ! Check Bob
-        (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
+        (uint256 balanceBob,, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
         assertEq(BOB.balance, 99 ether);
         assertEq(balanceBob, 1 ether); // not updated because Bob didnt call claimDividends
         assertEq(timestampBob, block.timestamp - LOCK_PERIOD / 2);

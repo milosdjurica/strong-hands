@@ -27,7 +27,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.deposit{value: 1 ether}();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(BOB.balance, 99 ether);
         assertEq(balance, 1 ether);
         assertEq(timestamp, block.timestamp);
@@ -48,7 +48,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.deposit{value: 1 ether}();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(BOB.balance, 98 ether);
         assertEq(balance, 2 ether);
         assertEq(timestamp, block.timestamp);
@@ -76,7 +76,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPoints, 0);
@@ -95,7 +95,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0);
@@ -115,7 +115,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD / 2);
         assertEq(lastDividendPoints, 0);
@@ -151,12 +151,13 @@ contract StrongHandsUnitTest is SetupTestsTest {
     //////////////////////////////
     function test_claimDividends_NoUpdate() public depositWith(BOB, 1 ether) {
         vm.prank(BOB);
-        vm.expectEmit(true, true, true, true);
-        emit ClaimedDividends(BOB, 0);
+        // Won't emit event because he didn't claim any new dividends
+        // vm.expectEmit(true, true, true, true);
+        // emit ClaimedDividends(BOB, 0, 0, 0);
         strongHands.claimDividends();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 1 ether);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0);
@@ -173,17 +174,19 @@ contract StrongHandsUnitTest is SetupTestsTest {
         depositWith(BOB, 1 ether)
     {
         vm.startPrank(BOB);
-        vm.expectEmit(true, true, true, true);
-        emit ClaimedDividends(BOB, 0);
+        // Won't emit event because he didn't claim any new dividends
+        // vm.expectEmit(true, true, true, true);
+        // emit ClaimedDividends(BOB, 0, 0, 0);
         strongHands.claimDividends();
         strongHands.deposit{value: 1 ether}();
-        vm.expectEmit(true, true, true, true);
-        emit ClaimedDividends(BOB, 0);
+        // Won't emit event because he didn't claim any new dividends
+        // vm.expectEmit(true, true, true, true);
+        // emit ClaimedDividends(BOB, 0, 0, 0);
         strongHands.claimDividends();
         vm.stopPrank();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 2 ether);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0);
@@ -196,8 +199,9 @@ contract StrongHandsUnitTest is SetupTestsTest {
 
     function test_claimDividends_Update() public depositWith(ALICE, 1 ether) depositWith(BOB, 1 ether) {
         vm.prank(BOB);
-        vm.expectEmit(true, true, true, true);
-        emit ClaimedDividends(BOB, 0);
+        // Won't emit event because he didn't claim any new dividends
+        // vm.expectEmit(true, true, true, true);
+        // emit ClaimedDividends(BOB, 0, 0, 0);
         strongHands.claimDividends();
 
         // ! Alice pays 50% -> 0.5 eth
@@ -206,16 +210,19 @@ contract StrongHandsUnitTest is SetupTestsTest {
 
         vm.startPrank(BOB);
         vm.expectEmit(true, true, true, true);
-        emit ClaimedDividends(BOB, 0.5 ether);
+        emit ClaimedDividends(BOB, 0.5 ether, 0.5 ether, 0);
         strongHands.deposit{value: 1 ether}();
-        vm.expectEmit(true, true, true, true);
-        emit ClaimedDividends(BOB, 0);
+        // Won't emit event because he didn't claim any new dividends
+        // vm.expectEmit(true, true, true, true);
+        // emit ClaimedDividends(BOB, 0, 0.5 ether, 0.5 ether);
         strongHands.claimDividends();
         vm.stopPrank();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
-        assertEq(balance, 2.5 ether); // 1 + 1 from deposits + 0.5 from alice
+        (uint256 balance, uint256 claimedDividends, uint256 timestamp, uint256 lastDividendPoints) =
+            strongHands.users(BOB);
+        assertEq(balance, 2 ether); // 1 + 1 from deposits
+        assertEq(claimedDividends, 0.5 ether);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0.5 ether);
 
@@ -246,9 +253,9 @@ contract StrongHandsUnitTest is SetupTestsTest {
         vm.stopPrank();
 
         // ! Check Bob
-        (uint256 balanceBobAfter, uint256 timestampBobAfter, uint256 lastDividendPointsBobAfter) =
+        (uint256 balanceBobAfter,, uint256 timestampBobAfter, uint256 lastDividendPointsBobAfter) =
             strongHands.users(BOB);
-        assertEq(balanceBobAfter, 1 ether); // 1 + 1 from deposits + 0.5 from alice
+        assertEq(balanceBobAfter, 1 ether);
         assertEq(timestampBobAfter, block.timestamp);
         assertEq(lastDividendPointsBobAfter, 1 ether); // 0.5 when bob was in system, and 0.5 when he wasn't in system, only Charlie was
 
@@ -257,6 +264,17 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 0.5 ether); // Charlie didn't claim his
         assertEq(strongHands.totalDividendPoints(), 1 ether); // 0.5 + 0.5
     }
+
+    ////////////////////////////////
+    // * calculatePenalty() Tests //
+    ////////////////////////////////
+    function test_calculatePenalty() public {
+        // TODO -> Write this test
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // *                                          Harness (internal functions) Tests                                                    //
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////////////
     // * _dividendsOwing() Tests //
@@ -289,12 +307,9 @@ contract StrongHandsUnitTest is SetupTestsTest {
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // *                                                   Integration Tests                                                            //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /////////////////////////
-    // * Integration Test  //
-    /////////////////////////
     function test_deposit_AfterWithdrewPayingMaxPenalty()
         public
         depositWith(ALICE, 1 ether)
@@ -317,7 +332,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.deposit{value: 1 ether}();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         // Skip this check because Mock doesnt work properly
         // assertEq(BOB.balance, 98 ether);
         assertEq(balance, 1 ether);
@@ -338,7 +353,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         emit Withdrawn(BOB, 0.75 ether, 0.25 ether, block.timestamp);
         strongHands.withdraw();
 
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp - LOCK_PERIOD / 2);
         assertEq(lastDividendPoints, 0);
@@ -351,7 +366,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         skip(LOCK_PERIOD);
         vm.prank(ALICE);
         strongHands.withdraw();
-        (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
+        (uint256 balanceAlice,, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
         assertEq(balanceAlice, 0);
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD - LOCK_PERIOD / 2);
         assertEq(lastDividendPointsAlice, 0.25 ether);
@@ -367,14 +382,14 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Bob
-        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
         // assertEq(BOB.balance, 97 ether);
         assertEq(balance, 0 ether);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0);
 
         // ! Check Alice
-        (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
+        (uint256 balanceAlice,, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
         // assertEq(ALICE.balance, 94 ether);
         assertEq(balanceAlice, 6 ether);
         assertEq(timestampAlice, block.timestamp);
@@ -391,7 +406,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         strongHands.withdraw();
 
         // ! Check Alice
-        (uint256 balanceAliceAfter, uint256 timestampAliceAfter, uint256 lastDividendPointsAliceAfter) =
+        (uint256 balanceAliceAfter,, uint256 timestampAliceAfter, uint256 lastDividendPointsAliceAfter) =
             strongHands.users(ALICE);
         // assertEq(ALICE.balance, 94 ether);
         assertEq(balanceAliceAfter, 0 ether);
