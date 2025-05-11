@@ -6,6 +6,27 @@ import {StrongHands, Ownable} from "../../src/StrongHands.sol";
 import {StrongHandsDeploy} from "../../script/StrongHandsDeploy.s.sol";
 import {SetupTestsTest} from "../SetupTests.sol";
 
+contract ReentrancyAttacker {
+    StrongHands public target;
+    bool public reentered;
+
+    constructor(address _target) payable {
+        target = StrongHands(_target);
+    }
+
+    function attack() external {
+        target.deposit{value: address(this).balance}();
+        target.withdraw();
+    }
+
+    receive() external payable {
+        if (!reentered) {
+            reentered = true;
+            target.withdraw();
+        }
+    }
+}
+
 contract ForkTest is SetupTestsTest {
     ////////////////////////////////
     // * constructor() test       //
@@ -62,6 +83,24 @@ contract ForkTest is SetupTestsTest {
     ////////////////////////////////
     // * withdraw() tests         //
     ////////////////////////////////
+    function testFork_withdraw_Reentrancy() public skipWhenNotForking {
+        vm.deal(address(this), 1 ether);
+        ReentrancyAttacker attacker = new ReentrancyAttacker{value: 1 ether}(address(strongHands));
+
+        vm.expectRevert();
+        attacker.attack();
+
+        // ! Checks
+        (uint256 balance, uint256 claimedDividends, uint256 timestamp, uint256 lastDividendPoints) =
+            strongHands.users(address(attacker));
+        assertEq(balance, 0 ether);
+        assertEq(claimedDividends, 0);
+        assertEq(timestamp, 0);
+        assertEq(strongHands.totalDividendPoints(), lastDividendPoints);
+        assertEq(strongHands.totalDividendPoints(), 0);
+        assertEq(strongHands.totalStaked(), 0 ether);
+    }
+
     function testFork_withdraw_RevertIf_ZeroAmount() public skipWhenNotForking {
         vm.expectRevert(abi.encodeWithSelector(StrongHands.StrongHands__ZeroAmount.selector));
         strongHands.withdraw();
