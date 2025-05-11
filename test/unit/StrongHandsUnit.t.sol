@@ -222,7 +222,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         (uint256 balance, uint256 claimedDividends, uint256 timestamp, uint256 lastDividendPoints) =
             strongHands.users(BOB);
         assertEq(balance, 2 ether); // 1 + 1 from deposits
-        assertEq(claimedDividends, 0.5 ether); // 1 + 1 from deposits
+        assertEq(claimedDividends, 0.5 ether);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0.5 ether);
 
@@ -255,7 +255,7 @@ contract StrongHandsUnitTest is SetupTestsTest {
         // ! Check Bob
         (uint256 balanceBobAfter,, uint256 timestampBobAfter, uint256 lastDividendPointsBobAfter) =
             strongHands.users(BOB);
-        assertEq(balanceBobAfter, 1 ether); // 1 + 1 from deposits + 0.5 from alice
+        assertEq(balanceBobAfter, 1 ether);
         assertEq(timestampBobAfter, block.timestamp);
         assertEq(lastDividendPointsBobAfter, 1 ether); // 0.5 when bob was in system, and 0.5 when he wasn't in system, only Charlie was
 
