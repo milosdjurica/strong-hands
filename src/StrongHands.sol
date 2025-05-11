@@ -147,18 +147,19 @@ contract StrongHands is Ownable {
      * @dev Emits a {Withdrawn} event.
      */
     function withdraw() external {
-        claimDividends();
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
 
         uint256 penalty = calculatePenalty(msg.sender);
+        claimDividends();
+        uint256 amountWithDividends = user.balance;
 
         user.balance = 0;
-        uint256 payout = initialAmount - penalty;
+        uint256 payout = amountWithDividends - penalty;
         // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
         // Maybe move this after disburse???
-        totalStaked -= initialAmount;
+        totalStaked -= amountWithDividends;
 
         // totalStaked > 0 bcz cant divide by 0
         // disburse

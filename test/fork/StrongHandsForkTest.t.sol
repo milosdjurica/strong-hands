@@ -277,15 +277,15 @@ contract ForkTest is SetupTestsTest {
 
         // ! Check Mark
         (uint256 balanceMark, uint256 timestampMark, uint256 lastDividendPointsMark) = strongHands.users(MARK);
-        // 100 - 2 deposited + 2 prize - 1 ether penalty (25% of 2 deposited + 2 prize) + 3 withdrawn == 101 ether
-        assertEq(MARK.balance, 101 ether);
+        // 100 - 2 deposited + 2 prize - 0.5 ether penalty (25% of 2 deposited) => 3.5 to withdraw == 101.5 ether
+        assertEq(MARK.balance, 101.5 ether);
         assertEq(balanceMark, 0 ether); // he withdrew
         assertEq(timestampMark, block.timestamp - LOCK_PERIOD / 2);
         assertEq(lastDividendPointsMark, 1 ether); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 4 ether);
-        assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.unclaimedDividends(), 4.5 ether); // 6 from Charlie + 0.5 from Mark but Mark picked up 2 ethers reward from Charlie
+        assertEq(strongHands.totalDividendPoints(), 1.125 ether); // 1 from Charlie and 0.5/4 from mark = 1.125
 
         // ! Check Alice - BEFORE WITHDRAWING FROM HER ACC
         (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
@@ -293,10 +293,6 @@ contract ForkTest is SetupTestsTest {
         assertEq(balanceAlice, 3 ether); // not updated because Alice didnt call claimDividends
         assertEq(timestampAlice, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsAlice, 0); // not updated because Alice didnt call claimDividends
-        // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 4 ether);
-        assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
 
         // ! Check Bob - BEFORE WITHDRAWING FROM HIS ACC
         (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
@@ -304,10 +300,6 @@ contract ForkTest is SetupTestsTest {
         assertEq(balanceBob, 1 ether); // not updated because Bob didnt call claimDividends
         assertEq(timestampBob, block.timestamp - LOCK_PERIOD);
         assertEq(lastDividendPointsBob, 0); // this is 1 ether - For 1 ether holding, you win 1 ether. He holds 2 ether -> Wins 2 ether prize
-        // ! Check StrongHands
-        assertEq(strongHands.totalStaked(), 4 ether);
-        assertEq(strongHands.unclaimedDividends(), 5 ether); // 6 from Charlie + 1 from Mark but Mark picked up 2 ethers reward from Charlie
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
 
         // ! Alice Withdraws
         vm.prank(ALICE);
@@ -316,15 +308,15 @@ contract ForkTest is SetupTestsTest {
         // ! Check Alice - AFTER WITHDRAWING FROM HER ACC
         (uint256 balanceAliceAfter, uint256 timestampAliceAfter, uint256 lastDividendPointsAliceAfter) =
             strongHands.users(ALICE);
-        // 100 - 3 deposited + 3 from Charlie + 3 withdrawn + 0.75 from Mark
-        assertEq(ALICE.balance, 103.75 ether);
+        // 100 - 3 deposited + 3 from Charlie + 3 withdrawn + (0.5/4*3) => 0.375 from Mark
+        assertEq(ALICE.balance, 103.375 ether);
         assertEq(balanceAliceAfter, 0); // withdrew
         assertEq(timestampAliceAfter, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsAliceAfter, 1.25 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. She holds 3 ether -> Wins 3.75 ether prize
+        assertEq(lastDividendPointsAliceAfter, 1.125 ether); // this is 1 ether from Charlie + 0.125 from Mark - For 1 ether holding, you win 1.125 ether. She holds 3 ether -> Wins 3.375 ether prize
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 1 ether);
-        assertEq(strongHands.unclaimedDividends(), 1.25 ether); // 6 from Charlie and 1 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.75 from Mark
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.unclaimedDividends(), 1.125 ether); // 6 from Charlie and 0.5 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.375 from Mark
+        assertEq(strongHands.totalDividendPoints(), 1.125 ether);
 
         // ! Bob Withdraws
         vm.prank(BOB);
@@ -333,16 +325,16 @@ contract ForkTest is SetupTestsTest {
         // ! Check Bob - AFTER WITHDRAWING FROM HIS ACC
         (uint256 balanceBobAfter, uint256 timestampBobAfter, uint256 lastDividendPointsBobAfter) =
             strongHands.users(BOB);
-        // 100 - 1 deposited + 1 from Charlie + 1 withdrawn + 0.25 from Mark
-        assertEq(BOB.balance, 101.25 ether);
+        // 100 - 1 deposited + 1 from Charlie + 1 withdrawn + 0.125 from Mark
+        assertEq(BOB.balance, 101.125 ether);
         assertEq(balanceBobAfter, 0); // withdrew
         assertEq(timestampBobAfter, block.timestamp - LOCK_PERIOD);
-        assertEq(lastDividendPointsBobAfter, 1.25 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
+        assertEq(lastDividendPointsBobAfter, 1.125 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
 
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 0);
-        assertEq(strongHands.unclaimedDividends(), 0); // 6 from Charlie and 1 from Mark but Mark picked up 2 ethers reward from Charlie and Alice picked up 3 ethers reward from Charlie and 0.75 from Mark and Bob picked up 1 ethers reward from Charlie and 0.25 from Mark === 6 + 1 - 2 - 3 - 0.75 - 1 - 0.25
-        assertEq(strongHands.totalDividendPoints(), 1.25 ether);
+        assertEq(strongHands.unclaimedDividends(), 0); // 6 from Charlie and 0.5 from Mark. Mark picked up 2 ethers reward from Charlie. Alice picked up 3 ethers reward from Charlie and 0.375 from Mark. Bob picked up 1 ethers reward from Charlie and 0.125 from Mark === 6 + 0.5 - 2 - 3 - 0.375 - 1 - 0.125
+        assertEq(strongHands.totalDividendPoints(), 1.125 ether); // this is 1 ether from Charlie + 0.25 from Mark - For 1 ether holding, you win 1.25 ether. He holds 1 ether -> Wins 1.25 ether prize
     }
 
     // ! -> Alice, Bob, Charlie, Mark and Jane test. First question from email.
