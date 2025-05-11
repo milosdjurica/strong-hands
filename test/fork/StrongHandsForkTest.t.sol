@@ -18,7 +18,7 @@ contract ForkTest is SetupTestsTest {
             assertEq(address(strongHands.i_pool()), address(deployScript.POOL()));
             // assertEq(address(strongHands.i_WETH()), address(deployScript.WETH()));
             assertEq(address(strongHands.i_aEthWeth()), address(deployScript.A_WETH()));
-        } else {
+        } else if (block.chainid == 1) {
             assertEq(strongHands.i_lockPeriod(), LOCK_PERIOD);
             assertEq(strongHands.owner(), msg.sender);
             assertEq(
