@@ -557,4 +557,64 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 6 ether);
         assertEq(strongHands.totalDividendPoints(), 1 ether);
     }
+
+    function testFork_withdraw_NoOneToCollectReward() public skipWhenNotForking depositWith(BOB, 1 ether) {
+        vm.prank(BOB);
+        strongHands.withdraw();
+
+        // ! Check Bob
+        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        assertEq(balance, 0 ether);
+        assertEq(timestamp, block.timestamp);
+        assertEq(lastDividendPoints, 0);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 0);
+        assertEq(strongHands.unclaimedDividends(), 0 ether);
+        assertEq(strongHands.totalDividendPoints(), 0);
+
+        skip(LOCK_PERIOD);
+        // ! Owner can claim 0.5 penalty from Bob and yield from it
+        vm.prank(msg.sender);
+        strongHands.claimYield(0.5 ether);
+
+        // ! Alice enters
+        vm.prank(ALICE);
+        strongHands.deposit{value: 1 ether}();
+
+        // ! Check Alice
+        (uint256 balanceAlice, uint256 claimedDividendsAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) =
+            strongHands.users(ALICE);
+        assertEq(balanceAlice, 1 ether);
+        assertEq(claimedDividendsAlice, 0);
+        assertEq(timestampAlice, block.timestamp);
+        assertEq(lastDividendPointsAlice, 0);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 1 ether);
+        assertEq(strongHands.unclaimedDividends(), 0);
+        assertEq(strongHands.totalDividendPoints(), 0);
+
+        // ! Alice withdraws after time passed
+        skip(LOCK_PERIOD);
+        vm.prank(ALICE);
+        strongHands.withdraw();
+
+        // ! Check Alice after withdraw
+        (
+            uint256 balanceAliceAfterWithdraw,
+            uint256 claimedDividendsAliceAfterWithdraw,
+            uint256 timestampAliceAfterWithdraw,
+            uint256 lastDividendPointsAliceAfterWithdraw
+        ) = strongHands.users(ALICE);
+        assertEq(balanceAliceAfterWithdraw, 0);
+        assertEq(claimedDividendsAliceAfterWithdraw, 0);
+        assertEq(timestampAliceAfterWithdraw, block.timestamp - LOCK_PERIOD);
+        assertEq(lastDividendPointsAliceAfterWithdraw, 0);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 0);
+        assertEq(strongHands.unclaimedDividends(), 0);
+        assertEq(strongHands.totalDividendPoints(), 0);
+    }
 }
