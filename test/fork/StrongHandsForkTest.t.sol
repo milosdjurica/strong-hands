@@ -184,6 +184,24 @@ contract ForkTest is SetupTestsTest {
         assertEq(balanceWithYieldAfter + 1e16, balanceWithYield);
     }
 
+    ////////////////////////////////
+    // * calculatePenalty() Tests //
+    ////////////////////////////////
+    function testFork_calculatePenalty_ZeroPenalty() public depositWith(BOB, 1 ether) skipWhenNotForking {
+        skip(LOCK_PERIOD);
+        uint256 penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0);
+
+        skip(LOCK_PERIOD);
+        penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0);
+    }
+
+    function testFork_calculatePenalty() public depositWith(BOB, 1 ether) skipWhenNotForking {
+        uint256 maxPenalty = strongHands.calculatePenalty(BOB);
+        assertEq(maxPenalty, 0.5 ether);
+    }
+
     // Bob enters with 1 eth
     // Alice enters with 1 eth
     // Alice gets out immediately and pays 0.5 eth penalty

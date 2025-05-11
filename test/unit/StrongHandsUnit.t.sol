@@ -268,8 +268,19 @@ contract StrongHandsUnitTest is SetupTestsTest {
     ////////////////////////////////
     // * calculatePenalty() Tests //
     ////////////////////////////////
-    function test_calculatePenalty() public {
-        // TODO -> Write this test
+    function test_calculatePenalty_ZeroPenalty() public depositWith(BOB, 1 ether) {
+        skip(LOCK_PERIOD);
+        uint256 penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0);
+
+        skip(LOCK_PERIOD);
+        penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0);
+    }
+
+    function test_calculatePenalty() public depositWith(BOB, 1 ether) {
+        uint256 maxPenalty = strongHands.calculatePenalty(BOB);
+        assertEq(maxPenalty, 0.5 ether);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
