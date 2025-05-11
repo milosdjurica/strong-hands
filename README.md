@@ -1,3 +1,7 @@
+# Sepolia address
+
+https://sepolia.etherscan.io/address/0x9230b96720a66913aa69d076dd94105a81f82a40#code
+
 # Installation
 
 ```sh
@@ -10,19 +14,19 @@ forge build
 
 # Testing
 
-## Run all tests (except Fork tests)
+### Run all tests (except Fork tests)
 
 `forge test`
 
-## Unit tests
+### Unit tests
 
 `forge test --mc Unit`
 
-## Fuzz tests
+### Fuzz tests
 
 `forge test --mc Fuzz`
 
-## Fork tests
+### Fork tests
 
 ```sh
 source .env
@@ -33,7 +37,7 @@ forge test --fork-url $MAINNET_RPC_URL --mt TestName
 
 ```
 
-## Coverage
+# Coverage
 
 ```sh
 source .env
@@ -45,6 +49,7 @@ forge coverage --fork-url $MAINNET_RPC_URL --mc Fork
 # Deploying
 
 ```sh
+source .env
 forge script script/StrongHandsDeploy.s.sol:StrongHandsDeploy --rpc-url $SEPOLIA_RPC_URL --private-key $PRIVATE_KEY --broadcast --etherscan-api-key $ETHERSCAN_API_KEY --verify
 
 ```
