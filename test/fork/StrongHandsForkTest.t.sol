@@ -201,6 +201,7 @@ contract ForkTest is SetupTestsTest {
 
         // ! Checks Alice
         (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(ALICE);
+        assertEq(ALICE.balance, 99.5 ether);
         assertEq(balance, 0);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 0);
@@ -208,18 +209,17 @@ contract ForkTest is SetupTestsTest {
 
         // ! Checks Bob
         (uint256 balanceBob, uint256 timestampBob, uint256 lastDividendPointsBob) = strongHands.users(BOB);
+        assertEq(BOB.balance, 99 ether);
         assertEq(balanceBob, 1 ether); // not updated because Bob needs to withdraw or deposit to get updated
         assertEq(timestampBob, block.timestamp);
         assertEq(lastDividendPointsBob, 0); // not updated because Bob needs to withdraw or deposit to get updated
-        assertEq(strongHands.totalStaked(), 1 ether);
 
-        // ! Additional checks ->  totalDividendPoints(), balances, aEthWeth
-        uint256 expectedTotalDividendPoints = 0.5 ether;
-        assertEq(strongHands.totalDividendPoints(), expectedTotalDividendPoints);
-        assertEq(ALICE.balance, 99.5 ether);
-        assertEq(BOB.balance, 99 ether);
+        // ! Checks StrongHands
+        assertEq(strongHands.totalStaked(), 1 ether);
+        assertEq(strongHands.totalDividendPoints(), 0.5 ether);
+        assertEq(strongHands.unclaimedDividends(), 0.5 ether);
         uint256 aEthWethBalance = strongHands.i_aEthWeth().balanceOf(address(strongHands));
-        assertGt(aEthWethBalance, 1.5 ether);
+        assertApproxEqRel(aEthWethBalance, 1.5 ether, 1);
 
         // ! Checks to see if aEthWeth balance is growing
         skip(LOCK_PERIOD);

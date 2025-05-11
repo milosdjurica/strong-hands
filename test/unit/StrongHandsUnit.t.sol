@@ -361,4 +361,45 @@ contract StrongHandsUnitTest is SetupTestsTest {
         assertEq(strongHands.unclaimedDividends(), 0 ether);
         assertEq(strongHands.totalDividendPoints(), 0.25 ether);
     }
+
+    function test_calculations() public depositWith(BOB, 6 ether) depositWith(ALICE, 6 ether) {
+        vm.prank(BOB);
+        strongHands.withdraw();
+
+        // ! Check Bob
+        (uint256 balance, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        // assertEq(BOB.balance, 97 ether);
+        assertEq(balance, 0 ether);
+        assertEq(timestamp, block.timestamp);
+        assertEq(lastDividendPoints, 0);
+
+        // ! Check Alice
+        (uint256 balanceAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) = strongHands.users(ALICE);
+        // assertEq(ALICE.balance, 94 ether);
+        assertEq(balanceAlice, 6 ether);
+        assertEq(timestampAlice, block.timestamp);
+        assertEq(lastDividendPointsAlice, 0);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 6 ether);
+        assertEq(strongHands.unclaimedDividends(), 3 ether);
+        assertEq(strongHands.totalDividendPoints(), 0.5 ether);
+
+        // ! Alice withdraws after lock period passes. No penalty
+        skip(LOCK_PERIOD);
+        vm.prank(ALICE);
+        strongHands.withdraw();
+
+        // ! Check Alice
+        (uint256 balanceAliceAfter, uint256 timestampAliceAfter, uint256 lastDividendPointsAliceAfter) =
+            strongHands.users(ALICE);
+        // assertEq(ALICE.balance, 94 ether);
+        assertEq(balanceAliceAfter, 0 ether);
+        assertEq(timestampAliceAfter, block.timestamp - LOCK_PERIOD);
+        assertEq(lastDividendPointsAliceAfter, 0.5 ether);
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 0);
+        assertEq(strongHands.unclaimedDividends(), 0);
+        assertEq(lastDividendPointsAliceAfter, 0.5 ether);
+    }
 }
