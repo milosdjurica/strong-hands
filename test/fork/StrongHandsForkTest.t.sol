@@ -187,19 +187,21 @@ contract ForkTest is SetupTestsTest {
     ////////////////////////////////
     // * calculatePenalty() Tests //
     ////////////////////////////////
-    function testFork_calculatePenalty_ZeroPenalty() public depositWith(BOB, 1 ether) skipWhenNotForking {
-        skip(LOCK_PERIOD);
+    function testFork_calculatePenalty() public depositWith(BOB, 1 ether) skipWhenNotForking {
         uint256 penalty = strongHands.calculatePenalty(BOB);
-        assertEq(penalty, 0);
+        assertEq(penalty, 0.5 ether);
+
+        skip(LOCK_PERIOD / 2);
+        penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0.25 ether);
+
+        skip(LOCK_PERIOD / 4);
+        penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0.125 ether);
 
         skip(LOCK_PERIOD);
         penalty = strongHands.calculatePenalty(BOB);
         assertEq(penalty, 0);
-    }
-
-    function testFork_calculatePenalty() public depositWith(BOB, 1 ether) skipWhenNotForking {
-        uint256 maxPenalty = strongHands.calculatePenalty(BOB);
-        assertEq(maxPenalty, 0.5 ether);
     }
 
     // Bob enters with 1 eth
