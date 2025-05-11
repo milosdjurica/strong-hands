@@ -15,7 +15,7 @@ contract StrongHandsIntegrationTest is SetupTestsTest {
         depositWith(ALICE, 1 ether)
         depositWith(BOB, 2 ether)
     {
-        // ! Bob withdraws and pays 50% penalty
+        // ! Bob withdraws and pays 50% penalty -> 1 ether
         vm.prank(BOB);
         strongHands.withdraw();
 
@@ -32,17 +32,80 @@ contract StrongHandsIntegrationTest is SetupTestsTest {
         strongHands.deposit{value: 1 ether}();
 
         // ! Check Bob
-        (uint256 balance,, uint256 timestamp, uint256 lastDividendPoints) = strongHands.users(BOB);
+        (uint256 balance, uint256 claimedDividendsBob, uint256 timestamp, uint256 lastDividendPoints) =
+            strongHands.users(BOB);
         // Skip this check because Mock doesnt work properly
         // assertEq(BOB.balance, 98 ether);
         assertEq(balance, 1 ether);
+        assertEq(claimedDividendsBob, 0);
         assertEq(timestamp, block.timestamp);
         assertEq(lastDividendPoints, 1 ether);
+
+        // ! Check Alice
+        (uint256 balanceAlice, uint256 claimedDividendsAlice, uint256 timestampAlice, uint256 lastDividendPointsAlice) =
+            strongHands.users(ALICE);
+        assertEq(balanceAlice, 1 ether);
+        assertEq(claimedDividendsAlice, 0);
+        assertEq(timestampAlice, block.timestamp - 1);
+        assertEq(lastDividendPointsAlice, 0);
 
         // ! Check StrongHands
         assertEq(strongHands.totalStaked(), 2 ether); // Alice 1 + Bob 1
         assertEq(strongHands.unclaimedDividends(), 1 ether); // 1 Bob first penalty that Alice didn't claim
         assertEq(strongHands.totalDividendPoints(), 1 ether);
+
+        vm.prank(ALICE);
+        strongHands.claimDividends();
+
+        // ! Check Alice after claiming
+        (
+            uint256 balanceAliceAfterClaim,
+            uint256 claimedDividendsAliceAfterClaim,
+            uint256 timestampAliceAfterClaim,
+            uint256 lastDividendPointsAliceAfterClaim
+        ) = strongHands.users(ALICE);
+        assertEq(balanceAliceAfterClaim, 1 ether);
+        assertEq(claimedDividendsAliceAfterClaim, 1 ether);
+        assertEq(timestampAliceAfterClaim, block.timestamp - 1);
+        assertEq(lastDividendPointsAliceAfterClaim, 1 ether);
+
+        // ! Check StrongHands
+        assertEq(strongHands.totalStaked(), 3 ether); // Alice 1 + Bob 1 + Alice 1 claimed
+        assertEq(strongHands.unclaimedDividends(), 0);
+        assertEq(strongHands.totalDividendPoints(), 1 ether);
+
+        skip(LOCK_PERIOD);
+        vm.prank(BOB);
+        strongHands.withdraw();
+        // ! Check Bob after withdrawing
+        (
+            uint256 balanceBobAfter,
+            uint256 claimedDividendsBobAfter,
+            uint256 timestampBobAfter,
+            uint256 lastDividendPointsBobAfter
+        ) = strongHands.users(BOB);
+        // Skip this check because Mock doesnt work properly
+        // assertEq(BOB.balance, 98 ether);
+        assertEq(balanceBobAfter, 0 ether);
+        assertEq(claimedDividendsBobAfter, 0);
+        assertEq(timestampBobAfter, block.timestamp - LOCK_PERIOD);
+        assertEq(lastDividendPointsBobAfter, 1 ether);
+
+        vm.prank(ALICE);
+        strongHands.withdraw();
+        // ! Check Bob after withdrawing
+        (
+            uint256 balanceAliceAfterWithdraw,
+            uint256 claimedDividendsAliceAfterWithdraw,
+            uint256 timestampAliceAfterWithdraw,
+            uint256 lastDividendPointsAliceAfterWithdraw
+        ) = strongHands.users(ALICE);
+        // Skip this check because Mock doesnt work properly
+        // assertEq(BOB.balance, 98 ether);
+        assertEq(balanceAliceAfterWithdraw, 0 ether);
+        assertEq(claimedDividendsAliceAfterWithdraw, 0);
+        assertEq(timestampAliceAfterWithdraw, block.timestamp - LOCK_PERIOD - 1);
+        assertEq(lastDividendPointsAliceAfterWithdraw, 1 ether);
     }
 
     // ! Note -> This test will work only if LOCK_PERIOD % 2 == 0
