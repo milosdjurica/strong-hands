@@ -19,7 +19,12 @@ contract SetupTestsTest is Test {
 
     event Deposited(address indexed sender, uint256 indexed amount, uint256 indexed timestamp);
     event Withdrawn(address indexed user, uint256 indexed payout, uint256 indexed penalty, uint256 timestamp);
-    event ClaimedDividends(address indexed user, uint256 indexed amountClaimed);
+    event ClaimedDividends(
+        address indexed user,
+        uint256 indexed amountClaimed,
+        uint256 indexed latestDividendPoints,
+        uint256 previousDividendPoints
+    );
     event ClaimedYield(address indexed owner, uint256 indexed amount);
 
     function setUp() public {

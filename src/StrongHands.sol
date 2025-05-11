@@ -36,7 +36,13 @@ contract StrongHands is Ownable {
     /// @notice Emitted when user claims dividends.
     /// @param user The address of the caller.
     /// @param amountClaimed The amount of dividends claimed by user.
-    event ClaimedDividends(address indexed user, uint256 indexed amountClaimed);
+    // TODO -> Update natspec EVERYWHERE
+    event ClaimedDividends(
+        address indexed user,
+        uint256 indexed amountClaimed,
+        uint256 indexed latestDividendPoints,
+        uint256 previousDividendPoints
+    );
     /// @notice Emitted when owner claims yield.
     /// @param owner The address of the owner.
     /// @param amount The amount of yield owner claimed.
@@ -51,6 +57,7 @@ contract StrongHands is Ownable {
     /// @param lastDividendPoints Snapshot of dividend points when the user last updated. Update happens on every deposit, withdraw or when `claimDividends()` function is called directly
     struct UserInfo {
         uint256 balance;
+        uint256 claimedDividends;
         uint256 lastDepositTimestamp;
         uint256 lastDividendPoints;
     }
@@ -150,12 +157,13 @@ contract StrongHands is Ownable {
         UserInfo storage user = users[msg.sender];
         uint256 initialAmount = user.balance;
         if (initialAmount == 0) revert StrongHands__ZeroAmount();
+        claimDividends();
 
         uint256 penalty = calculatePenalty(msg.sender);
-        claimDividends();
-        uint256 amountWithDividends = user.balance;
+        uint256 amountWithDividends = user.balance + user.claimedDividends;
 
         user.balance = 0;
+        user.claimedDividends = 0;
         uint256 payout = amountWithDividends - penalty;
         // TODO -> This stays the same but in modifier totalStaked is updated `totalStaked+reward` in order to redistribute properly
         // Maybe move this after disburse???
@@ -211,14 +219,17 @@ contract StrongHands is Ownable {
     function claimDividends() public {
         UserInfo storage user = users[msg.sender];
         uint256 owing = _dividendsOwing(user);
-        if (owing > 0) {
-            unclaimedDividends -= owing;
-            user.balance += owing;
-            totalStaked += owing;
-        }
+
+        uint256 previousDividendPoints = user.lastDividendPoints;
         // This is updated every time, because we want to update user when he enters first time too
         user.lastDividendPoints = totalDividendPoints;
-        emit ClaimedDividends(msg.sender, owing);
+
+        if (owing > 0) {
+            unclaimedDividends -= owing;
+            user.claimedDividends += owing;
+            totalStaked += owing;
+            emit ClaimedDividends(msg.sender, owing, user.lastDividendPoints, previousDividendPoints);
+        }
     }
 
     ////////////////////
@@ -252,6 +263,6 @@ contract StrongHands is Ownable {
     function _dividendsOwing(UserInfo memory user) internal view returns (uint256) {
         // how many new points since this user last claimed
         uint256 newDividendPoints = totalDividendPoints - user.lastDividendPoints;
-        return (user.balance * newDividendPoints) / POINT_MULTIPLIER;
+        return ((user.balance + user.claimedDividends) * newDividendPoints) / POINT_MULTIPLIER;
     }
 }
