@@ -28,6 +28,10 @@ contract ReentrancyAttacker {
 }
 
 contract ForkTest is SetupTestsTest {
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // *                                                    Fork Tests                                                                  //
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     ////////////////////////////////
     // * constructor() test       //
     ////////////////////////////////
@@ -74,7 +78,7 @@ contract ForkTest is SetupTestsTest {
         assertEq(strongHands.totalStaked(), 1 ether);
 
         // StrongHands contract should hold no raw ETH
-        // TODO -> This check passes on mainnet, but fails on sepolia? Different ABIs probably because aave-v3-origin vs core & periphery
+        // This check passes on mainnet, but fails on sepolia? Different ABIs probably because aave-v3-origin vs core & periphery
         // assertEq(address(strongHands).balance, 0);
 
         assertEq(strongHands.i_aEthWeth().balanceOf(address(strongHands)), 1 ether);

@@ -175,7 +175,6 @@ contract StrongHands is Ownable {
             totalDividendPoints += (penalty * POINT_MULTIPLIER) / totalStaked;
         }
 
-        // TODO -> check reentrancy
         i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), payout);
         i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), payout, msg.sender);
 
