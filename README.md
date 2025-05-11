@@ -1,66 +1,53 @@
-## Foundry
+# Installation
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+```sh
 
-Foundry consists of:
+git clone https://github.com/milosdjurica/strong-hands
+cd strong-hands
+forge build
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
 ```
 
-### Test
+# Testing
 
-```shell
-$ forge test
+## Run all tests (except Fork tests)
+
+`forge test`
+
+## Unit tests
+
+`forge test --mc Unit`
+
+## Fuzz tests
+
+`forge test --mc Fuzz`
+
+## Fork tests
+
+```sh
+source .env
+# Run all Fork tests on Mainnet fork
+forge test --fork-url $MAINNET_RPC_URL --mc Fork
+# Run specific test on Mainnet fork
+forge test --fork-url $MAINNET_RPC_URL --mt TestName
+
 ```
 
-### Format
+## Coverage
 
-```shell
-$ forge fmt
+```sh
+source .env
+forge coverage --fork-url $MAINNET_RPC_URL --mc Fork
 ```
 
-### Gas Snapshots
+![Coverage image][Coverage-image-url]
 
-```shell
-$ forge snapshot
+# Deploying
+
+```sh
+forge script script/StrongHandsDeploy.s.sol:StrongHandsDeploy --rpc-url $SEPOLIA_RPC_URL --private-key $PRIVATE_KEY --broadcast --etherscan-api-key $ETHERSCAN_API_KEY --verify
+
 ```
 
-### Anvil
+[Coverage-image-url]: https://github.com/milosdjurica/strong-hands/blob/main/public/coverage.png
 
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
