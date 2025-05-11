@@ -18,7 +18,7 @@ contract ForkTest is SetupTestsTest {
             assertEq(address(strongHands.i_pool()), address(deployScript.POOL()));
             // assertEq(address(strongHands.i_WETH()), address(deployScript.WETH()));
             assertEq(address(strongHands.i_aEthWeth()), address(deployScript.A_WETH()));
-        } else {
+        } else if (block.chainid == 1) {
             assertEq(strongHands.i_lockPeriod(), LOCK_PERIOD);
             assertEq(strongHands.owner(), msg.sender);
             assertEq(
@@ -182,6 +182,26 @@ contract ForkTest is SetupTestsTest {
         uint256 balanceWithYieldAfter = strongHands.i_aEthWeth().balanceOf(address(strongHands));
 
         assertEq(balanceWithYieldAfter + 1e16, balanceWithYield);
+    }
+
+    ////////////////////////////////
+    // * calculatePenalty() Tests //
+    ////////////////////////////////
+    function testFork_calculatePenalty() public depositWith(BOB, 1 ether) skipWhenNotForking {
+        uint256 penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0.5 ether);
+
+        skip(LOCK_PERIOD / 2);
+        penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0.25 ether);
+
+        skip(LOCK_PERIOD / 4);
+        penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0.125 ether);
+
+        skip(LOCK_PERIOD);
+        penalty = strongHands.calculatePenalty(BOB);
+        assertEq(penalty, 0);
     }
 
     // Bob enters with 1 eth
