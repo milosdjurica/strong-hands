@@ -194,23 +194,23 @@ contract StrongHands is Ownable {
     ////////////////////
     /**
      * @notice Allows the contract owner to claim protocol-generated yield (interest).
-     * @param amount The amount of yield (in wei) to withdraw. Must be greater than 0 and less than available yield.
+     * @param _amount The amount of yield (in wei) to withdraw. Must be greater than 0 and less than available yield.
      * @dev Only owner of the contract can call this function.
      * @dev Reverts if the caller is not the owner of the contract.
      * @dev Reverts with `StrongHands__ZeroAmount()`.
-     * @dev Reverts with `StrongHands__NotEnoughYield(amount, availableYield)` if amount exceeds available yield.
+     * @dev Reverts with `StrongHands__NotEnoughYield(_amount, availableYield)` if amount exceeds available yield.
      */
-    function claimYield(uint256 amount) external onlyOwner {
-        if (amount == 0) revert StrongHands__ZeroAmount();
+    function claimYield(uint256 _amount) external onlyOwner {
+        if (_amount == 0) revert StrongHands__ZeroAmount();
 
         uint256 balanceWithYield = i_aEthWeth.balanceOf(address(this));
         uint256 availableYield = balanceWithYield - totalStaked - unclaimedDividends;
-        if (amount > availableYield) revert StrongHands__NotEnoughYield(amount, availableYield);
+        if (_amount > availableYield) revert StrongHands__NotEnoughYield(_amount, availableYield);
 
-        i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), amount);
-        i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), amount, msg.sender);
+        i_aEthWeth.approve(address(i_wrappedTokenGatewayV3), _amount);
+        i_wrappedTokenGatewayV3.withdrawETH(address(i_pool), _amount, msg.sender);
 
-        emit ClaimedYield(msg.sender, amount);
+        emit ClaimedYield(msg.sender, _amount);
     }
 
     ////////////////////
@@ -241,31 +241,31 @@ contract StrongHands is Ownable {
     ////////////////////
     /**
      * @notice Calculates the current penalty for a user's withdrawal.
-     * @param user The address of the user.
+     * @param _user The address of the user.
      * @return The penalty amount to be redistributed to other active users.
      */
-    function calculatePenalty(address user) public view returns (uint256) {
-        uint256 unlockTimestamp = users[user].lastDepositTimestamp + i_lockPeriod;
+    function calculatePenalty(address _user) public view returns (uint256) {
+        uint256 unlockTimestamp = users[_user].lastDepositTimestamp + i_lockPeriod;
         if (block.timestamp >= unlockTimestamp) return 0;
 
         uint256 timeLeft = unlockTimestamp - block.timestamp;
 
         // rewritten formula to minimize precision loss
-        // users[user].balance * (timeLeft/i_lockPeriod) * (50/100)
+        // users[_user].balance * (timeLeft/i_lockPeriod) * (50/100)
         // ==
-        // (users[user].balance * timeLeft * 50) / (i_lockPeriod * 100)
+        // (users[_user].balance * timeLeft * 50) / (i_lockPeriod * 100)
         // ==
-        // (users[user].balance * timeLeft) / (i_lockPeriod * 2)
-        return (users[user].balance * timeLeft) / (i_lockPeriod * 2);
+        // (users[_user].balance * timeLeft) / (i_lockPeriod * 2)
+        return (users[_user].balance * timeLeft) / (i_lockPeriod * 2);
     }
 
     /**
      * @notice Internal function to calculate pending dividends for a user.
-     * @param user The user's info struct.
+     * @param _user The user's info struct.
      * @return Amount of dividends owed to the user.
      */
-    function _dividendsOwing(UserInfo memory user) internal view returns (uint256) {
-        uint256 newDividendPoints = totalDividendPoints - user.lastDividendPoints;
-        return ((user.balance + user.claimedDividends) * newDividendPoints) / POINT_MULTIPLIER;
+    function _dividendsOwing(UserInfo memory _user) internal view returns (uint256) {
+        uint256 newDividendPoints = totalDividendPoints - _user.lastDividendPoints;
+        return ((_user.balance + _user.claimedDividends) * newDividendPoints) / POINT_MULTIPLIER;
     }
 }
