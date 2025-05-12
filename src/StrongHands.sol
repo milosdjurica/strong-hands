@@ -166,8 +166,7 @@ contract StrongHands is Ownable {
      */
     function withdraw() external {
         UserInfo storage user = users[msg.sender];
-        uint256 initialAmount = user.balance;
-        if (initialAmount == 0) revert StrongHands__ZeroAmount();
+        if (user.balance == 0) revert StrongHands__ZeroAmount();
         claimDividends();
 
         uint256 penalty = calculatePenalty(msg.sender);
